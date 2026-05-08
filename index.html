@@ -221,32 +221,58 @@
         const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
         // ==========================================
-        // Ultra-Robust Date Parser: สกัดเฉพาะตัวเลข ไม่สนอักขระซ่อนเร้น
+        // GOD-MODE Date Parser: จัดการ "7-ต.ค.-67" และทุกรูปแบบในเอกภพ
         // ==========================================
         function normalizeDate(dateStr) {
             if (!dateStr) return null;
             try {
-                let cleanStr = dateStr.toString().trim().split(' ')[0]; 
-                let p = cleanStr.split(/[-/]/);
-                if (p.length < 3) return null;
-
-                // เครื่องดูดฝุ่น: ลบทุกอย่างที่ไม่ใช่ตัวเลขออก (แก้ปัญหา quote และ invisible characters)
-                let n0 = parseInt(p[0].replace(/\D/g, ''));
-                let n1 = parseInt(p[1].replace(/\D/g, ''));
-                let n2 = parseInt(p[2].replace(/\D/g, ''));
-
-                if (isNaN(n0) || isNaN(n1) || isNaN(n2)) return null;
-
+                let cleanStr = dateStr.toString().trim().split(' ')[0]; // เอาเฉพาะส่วนวันที่
                 let y, m, d;
+                let hasThaiMonth = false;
 
-                // วิเคราะห์ตำแหน่งของปี อย่างฉลาด
-                if (n0 > 2400) { y = n0; m = n1; d = n2; }
-                else if (n2 > 2400) { y = n2; m = n1; d = n0; }
-                else if (n0 > 1900) { y = n0 + 543; m = n1; d = n2; }
-                else if (n2 > 1900) { y = n2 + 543; m = n1; d = n0; }
-                else if (n0 >= 60 && n0 <= 99) { y = 2500 + n0; m = n1; d = n2; }
-                else if (n2 >= 60 && n2 <= 99) { y = 2500 + n2; m = n1; d = n0; }
-                else return null;
+                // ตรวจจับหาเดือนภาษาไทย (ม.ค., ก.พ. ฯลฯ)
+                for (let i = 0; i < 12; i++) {
+                    if (cleanStr.includes(thaiMonthsShort[i]) || cleanStr.includes(thaiMonthsFull[i])) {
+                        m = i + 1; // เจอเดือนแล้ว (1-12)
+                        hasThaiMonth = true;
+                        
+                        // แตกข้อความโดยใช้ชื่อเดือนเป็นตัวตัด
+                        let parts = cleanStr.replace(thaiMonthsShort[i], '-').replace(thaiMonthsFull[i], '-').split(/[-/\s]+/);
+                        parts = parts.filter(p => p.trim() !== ''); // ลบค่าว่าง
+                        
+                        if (parts.length >= 2) {
+                            d = parseInt(parts[0].replace(/\D/g, ''));
+                            y = parseInt(parts[1].replace(/\D/g, ''));
+                        }
+                        break;
+                    }
+                }
+
+                // ถ้าไม่เจอเดือนภาษาไทย ให้ถือว่าเป็นตัวเลขปกติ (เช่น 07/10/2567 หรือ 2567-10-07)
+                if (!hasThaiMonth) {
+                    let p = cleanStr.split(/[-/]/);
+                    if (p.length < 3) return null;
+
+                    let n0 = parseInt(p[0].replace(/\D/g, ''));
+                    let n1 = parseInt(p[1].replace(/\D/g, ''));
+                    let n2 = parseInt(p[2].replace(/\D/g, ''));
+
+                    if (isNaN(n0) || isNaN(n1) || isNaN(n2)) return null;
+
+                    if (n0 > 1000) { y = n0; m = n1; d = n2; }      // รูปแบบ YYYY-MM-DD
+                    else if (n2 > 1000) { y = n2; m = n1; d = n0; } // รูปแบบ DD-MM-YYYY
+                    else if (n2 >= 60 && n2 <= 99) { y = n2; m = n1; d = n0; } // รูปแบบ DD-MM-YY (ไทย)
+                    else return null;
+                }
+
+                if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+
+                // จัดการปี (แปลงให้เป็น พ.ศ. 4 หลักเสมอ)
+                if (y < 100) {
+                    y = y + 2500; // เช่น 67 -> 2567
+                } else if (y >= 1900 && y < 2400) {
+                    y = y + 543;  // ถ้าแอบเป็น ค.ศ. มา ให้บวก 543
+                }
 
                 if (m === 0) m = 1;
                 if (d === 0) d = 1;
@@ -255,7 +281,8 @@
                     strCE: `${y - 543}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`,
                     intBE: (y * 10000) + (m * 100) + d,
                     year: y,
-                    month: m
+                    month: m,
+                    day: d
                 };
             } catch (e) {
                 return null;
@@ -275,6 +302,7 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
+                    // map และกรองเฉพาะที่แปลงวันที่สำเร็จ
                     rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']).map(row => {
                         row._dateObj = normalizeDate(row['วันที่เกิดเหตุ']);
                         return row;
@@ -291,7 +319,7 @@
                         
                         processData(currentFilteredData);
                     } else {
-                        alert("ไม่พบข้อมูลที่สมบูรณ์ในไฟล์ CSV หรือไฟล์ผิดรูปแบบ");
+                        alert("ไม่พบข้อมูลที่สมบูรณ์ในไฟล์ CSV หรือไฟล์ผิดรูปแบบ (ตรวจสอบคอลัมน์ 'วันที่เกิดเหตุ')");
                     }
                 }
             });
@@ -525,13 +553,13 @@
                 
                 const detailStr = row['รายละเอียด'] ? row['รายละเอียด'].substring(0, 80) + '...' : '-';
                 
-                // โชว์วันที่ให้สวยงาม จัดเรียงได้เป๊ะ
+                // จัดรูปแบบวันที่ในตารางให้สวยงามอ่านง่าย เช่น 07/10/2567
                 const dObj = row._dateObj;
-                const displayDate = dObj ? `${dObj.year}-${dObj.month.toString().padStart(2,'0')}-${(dObj.intBE % 100).toString().padStart(2,'0')}` : row['วันที่เกิดเหตุ'];
+                const displayDate = dObj ? `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}` : row['วันที่เกิดเหตุ'];
 
                 tr.innerHTML = `
                     <td class="p-3 border-b whitespace-nowrap">${row['เลขที่ใบความเสี่ยง'] || '-'}</td>
-                    <td class="p-3 border-b whitespace-nowrap">${displayDate}</td>
+                    <td class="p-3 border-b whitespace-nowrap text-center">${displayDate}</td>
                     <td class="p-3 border-b text-center"><span class="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-bold">${row['ระดับ'] || '-'}</span></td>
                     <td class="p-3 border-b">${row['หน่วยงานที่เกี่ยวข้อง'] || '-'}</td>
                     <td class="p-3 border-b">${row['หมวดความเสี่ยง'] || '-'}</td>
