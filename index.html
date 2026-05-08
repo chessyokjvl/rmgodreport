@@ -9,7 +9,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     
@@ -17,12 +22,12 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap');
         body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; display: flex; flex-direction: column; min-height: 100vh; }
         .chart-container { position: relative; height: 300px; width: 100%; cursor: pointer; }
-        .dataTables_wrapper { padding-top: 1rem; font-size: 0.875rem; }
         .dataTables_wrapper .dataTables_filter input { border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem; outline: none; }
-        table.dataTable.no-footer { border-bottom: 1px solid #e5e7eb; }
-        main { flex: 1; }
         .ts-control { border-radius: 0.5rem; border-color: #e5e7eb; padding: 0.5rem; font-size: 0.875rem; }
         .ts-wrapper.multi .ts-control > div { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 0.25rem; }
+        .dt-buttons { margin-bottom: 1rem; }
+        .card-clickable { cursor: pointer; transition: transform 0.2s; }
+        .card-clickable:hover { transform: translateY(-5px); }
     </style>
 </head>
 <body class="p-6 flex flex-col">
@@ -40,20 +45,13 @@
                     คำแนะนำก่อนใช้งาน
                 </h3>
                 <ul class="list-disc list-inside text-gray-700 space-y-2 text-sm md:text-base">
-                    <li>เปิดไฟล์รายงานความเสี่ยง (God_Report) ต้นฉบับด้วยโปรแกรม Microsoft Excel</li>
-                    <li>ไปที่เมนู <b>File (ไฟล์)</b> > <b>Save As (บันทึกเป็น)</b></li>
-                    <li>ตรงช่องประเภทไฟล์ (Save as type) ให้เลือกเป็น <span class="bg-white px-2 py-1 rounded border font-mono text-blue-600 font-bold">CSV UTF-8 (Comma delimited) (*.csv)</span></li>
-                    <li>นำไฟล์ที่ได้มาอัปโหลดเข้าระบบด้านล่างนี้ได้เลยครับ</li>
+                    <li>เปิดไฟล์รายงานความเสี่ยง (God_Report) และ Save As เป็น <b>CSV UTF-8</b></li>
+                    <li>นำไฟล์มาอัปโหลดเข้าระบบเพื่อวิเคราะห์แบบ Interactive</li>
                 </ul>
             </div>
             
-            <label class="inline-block bg-blue-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-blue-700 cursor-pointer transition shadow-md hover:shadow-lg">
-                <span class="flex items-center gap-2 text-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    คลิกเพื่อ Import ไฟล์ CSV
-                </span>
+            <label class="inline-block bg-blue-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-blue-700 cursor-pointer transition shadow-md">
+                <span class="flex items-center gap-2 text-lg">คลิกเพื่อ Import ไฟล์ CSV</span>
                 <input type="file" id="csvFileMain" accept=".csv" class="hidden" />
             </label>
         </div>
@@ -63,131 +61,109 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-gray-800">📊 JVL-RM God Report Add-on Tools</h1>
-                    <p class="text-gray-500 text-sm">เครื่องมือวิเคราะห์อุบัติการณ์ความเสี่ยง (Interactive Dashboard)</p>
+                    <p class="text-gray-500 text-sm">Interactive Dashboard & Risk Register Generator</p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <label class="cursor-pointer bg-blue-50 text-blue-700 hover:bg-blue-100 px-5 py-2.5 rounded-xl text-sm font-semibold transition border border-blue-200 shadow-sm flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        <span id="headerFileName">เปลี่ยนไฟล์ CSV</span>
-                        <input type="file" id="csvFileHeader" accept=".csv" class="hidden" />
-                    </label>
-                </div>
+                <label class="cursor-pointer bg-blue-50 text-blue-700 hover:bg-blue-100 px-5 py-2.5 rounded-xl text-sm font-semibold transition border border-blue-200 shadow-sm flex items-center gap-2">
+                    <span id="headerFileName">เปลี่ยนไฟล์ CSV</span>
+                    <input type="file" id="csvFileHeader" accept=".csv" class="hidden" />
+                </label>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-                        </svg>
-                        ตัวกรองข้อมูล (Slicers)
-                    </h3>
-                    <button onclick="resetFilters()" class="text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1 rounded transition hover:bg-blue-100">ล้างตัวกรองทั้งหมด</button>
+                    <h3 class="font-bold text-gray-700 flex items-center gap-2">ตัวกรองข้อมูล (Slicers)</h3>
+                    <button onclick="resetFilters()" class="text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1 rounded">ล้างตัวกรองทั้งหมด</button>
                 </div>
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div class="lg:col-span-2 grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">ตั้งแต่วันที่</label>
-                            <input type="date" id="startDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500" onchange="applyFilters()">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">ถึงวันที่</label>
-                            <input type="date" id="endDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500" onchange="applyFilters()">
-                        </div>
+                        <div><label class="block text-xs font-medium text-gray-500 mb-1">ตั้งแต่วันที่</label><input type="date" id="startDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm" onchange="applyFilters()"></div>
+                        <div><label class="block text-xs font-medium text-gray-500 mb-1">ถึงวันที่</label><input type="date" id="endDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm" onchange="applyFilters()"></div>
                     </div>
-                    
-                    <div><label class="block text-xs font-medium text-gray-500 mb-1">ระดับความรุนแรง</label><select id="filterLevel" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานะ</label><select id="filterStatus" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div><label class="block text-xs font-medium text-gray-500 mb-1">Phase</label><select id="filterPhase" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    
-                    <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หมวดความเสี่ยง</label><select id="filterCategory" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หน่วยงานที่เกี่ยวข้อง</label><select id="filterDept" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานที่</label><select id="filterLocation" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">รายการ</label><select id="filterItem" multiple placeholder="เลือกทั้งหมด"></select></div>
-                    <div class="lg:col-span-3"><label class="block text-xs font-medium text-gray-500 mb-1">NRLS</label><select id="filterNRLS" multiple placeholder="เลือกทั้งหมด"></select></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1">ระดับความรุนแรง</label><select id="filterLevel" multiple></select></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานะ</label><select id="filterStatus" multiple></select></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1">Phase</label><select id="filterPhase" multiple></select></div>
+                    <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หมวดความเสี่ยง</label><select id="filterCategory" multiple></select></div>
+                    <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หน่วยงานที่เกี่ยวข้อง</label><select id="filterDept" multiple></select></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานที่</label><select id="filterLocation" multiple></select></div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="summaryCards">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500 relative overflow-hidden">
-                    <h3 class="text-gray-500 text-sm font-medium">จำนวนอุบัติการณ์ตามที่กรอง</h3>
-                    <div class="flex items-baseline gap-2 mt-2">
-                        <p class="text-4xl font-bold text-gray-800" id="totalIncidents">0</p>
-                        <p class="text-sm font-medium text-gray-400">ครั้ง</p>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="summaryCards">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500">
+                    <h3 class="text-gray-500 text-xs font-medium">ทั้งหมดตามกรอง</h3>
+                    <p class="text-3xl font-bold text-gray-800 mt-1" id="totalIncidents">0</p>
                     <p class="text-xs text-blue-500 mt-1 font-medium" id="totalPercentMsg"></p>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-red-100 border-l-4 border-l-red-500 relative overflow-hidden">
-                    <h3 class="text-gray-500 text-sm font-medium">ระดับความรุนแรงสูงสุด (E-I)</h3>
-                    <div class="flex items-baseline gap-2 mt-2">
-                        <p class="text-4xl font-bold text-gray-800" id="severeIncidents">0</p>
-                        <p class="text-sm font-medium text-gray-400">ครั้ง</p>
-                    </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-red-100 border-l-4 border-l-red-500">
+                    <h3 class="text-gray-500 text-xs font-medium">ระดับ E ขึ้นไป</h3>
+                    <p class="text-3xl font-bold text-gray-800 mt-1" id="severeIncidents">0</p>
                     <p class="text-xs text-red-500 mt-1 font-medium" id="severePercentMsg"></p>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-green-100 border-l-4 border-l-green-500 relative overflow-hidden">
-                    <h3 class="text-gray-500 text-sm font-medium">หน่วยงานที่รายงานสูงสุด</h3>
-                    <p class="text-xl font-bold text-gray-800 mt-2 truncate" id="topDepartment">-</p>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-purple-100 border-l-4 border-l-purple-500 card-clickable" onclick="triggerDrillDown('sentinel', 'G,H,I')">
+                    <h3 class="text-gray-500 text-xs font-medium">Sentinel Event (G,H,I)</h3>
+                    <p class="text-3xl font-bold text-purple-700 mt-1" id="sentinelCount">0</p>
+                    <p class="text-xs text-purple-500 mt-1 font-medium">👆 คลิกเพื่อดูรายการ</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-green-100 border-l-4 border-l-green-500">
+                    <h3 class="text-gray-500 text-xs font-medium">หน่วยงานสูงสุด</h3>
+                    <p class="text-lg font-bold text-gray-800 mt-1 truncate" id="topDepartment">-</p>
                     <p class="text-xs text-green-600 mt-1 font-medium" id="topDeptMsg"></p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="dashboardArea">
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
-                    <h3 class="font-bold text-gray-700 mb-1 text-sm">แนวโน้มอุบัติการณ์ (รวมรายเดือน)</h3>
-                    <div class="chart-container" style="height: 250px;">
-                        <canvas id="trendChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
-                    <h3 class="font-bold text-gray-700 mb-1 text-sm">สัดส่วนตามระดับความรุนแรง</h3>
-                    <div class="chart-container" style="height: 250px;">
-                        <canvas id="levelChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 md:col-span-2 hover:shadow-md transition">
-                    <h3 class="font-bold text-gray-700 mb-1 text-sm">อุบัติการณ์แบ่งตามหมวดความเสี่ยง (Top 10)</h3>
-                    <div class="chart-container" style="height: 350px;">
-                        <canvas id="categoryChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" id="tableArea" style="display: none;">
-                <div class="flex justify-between items-center mb-4 border-b pb-4">
-                    <h3 class="font-bold text-gray-700 text-lg" id="tableTitle">รายละเอียดข้อมูล</h3>
-                    <button onclick="closeTable()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
-                        ✕ ปิดตาราง
-                    </button>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-amber-200">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="bg-amber-100 p-2 rounded-lg text-amber-600 font-bold">Risk Register</div>
+                    <h3 class="font-bold text-gray-700">รายการความเสี่ยงสำคัญ (ระดับ E ขึ้นไป ล่าสุดของแต่ละหมวด)</h3>
                 </div>
                 <div class="overflow-x-auto">
-                    <table id="drilldownTable" class="w-full text-left border-collapse">
+                    <table id="riskRegisterTable" class="w-full text-xs text-left border-collapse">
                         <thead>
-                            <tr class="bg-gray-50 text-gray-600 text-sm">
-                                <th class="p-3 border-b">เลขที่ใบความเสี่ยง</th>
-                                <th class="p-3 border-b">วันที่เกิดเหตุ</th>
-                                <th class="p-3 border-b">ระดับ</th>
-                                <th class="p-3 border-b">หน่วยงานที่เกี่ยวข้อง</th>
-                                <th class="p-3 border-b">หมวดความเสี่ยง</th>
-                                <th class="p-3 border-b">รายละเอียด</th>
+                            <tr class="bg-amber-50 text-amber-800">
+                                <th class="p-2 border whitespace-nowrap">หมวดความเสี่ยง</th>
+                                <th class="p-2 border">รายการความเสี่ยง</th>
+                                <th class="p-2 border whitespace-nowrap text-center">มาตรฐาน 9 ด้าน / SAVE</th>
+                                <th class="p-2 border whitespace-nowrap text-center">วันที่ล่าสุด</th>
+                                <th class="p-2 border text-center">ระดับ</th>
+                                <th class="p-2 border">เลขที่/รายละเอียด</th>
                             </tr>
                         </thead>
-                        <tbody class="text-sm text-gray-700"></tbody>
+                        <tbody id="riskRegisterBody"></tbody>
                     </table>
                 </div>
             </div>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="dashboardArea">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-700 mb-2 text-xs">แนวโน้มรายเดือน</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-700 mb-2 text-xs">ระดับความรุนแรง</h3><div class="chart-container"><canvas id="levelChart"></canvas></div></div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 md:col-span-2"><h3 class="font-bold text-gray-700 mb-2 text-xs">หมวดความเสี่ยง (Top 10)</h3><div class="chart-container" style="height: 350px;"><canvas id="categoryChart"></canvas></div></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" id="tableArea" style="display: none;">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-700" id="tableTitle">รายละเอียดข้อมูล</h3>
+                    <button onclick="closeTable()" class="text-gray-400 hover:text-red-500">✕ ปิด</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="drilldownTable" class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-600">
+                                <th class="border p-2">เลขที่</th>
+                                <th class="border p-2">วันที่</th>
+                                <th class="border p-2">ระดับ</th>
+                                <th class="border p-2">หน่วยงาน</th>
+                                <th class="border p-2">รายการ</th>
+                                <th class="border p-2">รายละเอียด</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </main>
 
-    <footer class="mt-10 mb-4 text-center text-gray-500 text-sm">
-        <p class="font-medium">พัฒนาโดย ภก.พิชญ์พงศ์ คงนาวัง</p>
-        <p>โรงพยาบาลจิตเวชเลยราชนครินทร์</p>
-        <p>พฤษภาคม 2569</p>
-    </footer>
+    <footer class="mt-10 mb-4 text-center text-gray-400 text-xs">พัฒนาโดย ภก.พิชญ์พงศ์ คงนาวัง | โรงพยาบาลจิตเวชเลยราชนครินทร์ | พฤษภาคม 2569</footer>
 
     <script>
         let charts = {};
@@ -195,98 +171,410 @@
         let currentFilteredData = []; 
         let dataTableInstance = null; 
         let tomSelects = {}; 
-
-        const tsConfig = {
-            plugins: ['remove_button'],
-            maxItems: null,
-            valueField: 'id',
-            labelField: 'title',
-            searchField: 'title',
-            placeholder: 'เลือกทั้งหมด (ไม่กรอง)',
-            onChange: function() { applyFilters(); }
-        };
-
-        const filterFields = {
-            'สถานะ': 'filterStatus',
-            'หมวดความเสี่ยง': 'filterCategory',
-            'สถานที่': 'filterLocation',
-            'ระดับ': 'filterLevel',
-            'หน่วยงานที่เกี่ยวข้อง': 'filterDept',
-            'NRLS': 'filterNRLS',
-            'รายการ': 'filterItem',
-            'Phase': 'filterPhase'
+        
+        // ==========================================
+        // ฐานข้อมูล Logic การจับคู่ 9ES / SAVE (Map ด้วย "รายการ")
+        // สามารถเพิ่มข้อมูลได้เรื่อยๆ ในบล็อกนี้
+        // รูปแบบ: "ชื่อรายการความเสี่ยง": "มาตรฐานที่ตรงกัน"
+        // ==========================================
+        const itemMapping = {
+            "Delay Diagnosis and Delay treatment ในผู้ป่วยฉุกเฉิน และผู้ป่วย Fast Track": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "Missed Diagnosis ที่ห้องฉุกเฉิน": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "Over Triage (คัดกรองผิดพลาดว่าเป็นเคสฉุกเฉิน แต่จริง ๆ แล้วไม่ฉุกเฉิน)": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "Under Triage (คัดกรองผิดพลาดว่าเป็นเคสไม่ฉุกเฉิน แต่จริงๆ แล้วฉุกเฉิน)": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "ผู้ป่วย Acute Coronary Syndrome ไม่ได้รับการตรวจรักษาในช่วงเวลา Golden Period": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "ผู้ป่วย Acute Ischemic Stroke ที่ให้การรักษาไม่ทัน Golden peroid": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "ล่าช้าในการรักษา (ทำให้ผู้ป่วยทรุดลง)": "E : การคัดกรองคลาดเคลื่อน ER Triage",
+  "CAUTI: Catheter Associated Urinary Tract Infection": "I : คนไข้ติดเชื้อ",
+  "CLABSI: Central Line-Associated Bloodstream Infection": "I : คนไข้ติดเชื้อ",
+  "SSI : Surgical Site Infection": "I : คนไข้ติดเชื้อ",
+  "VAP: Ventilator-Associated Pneumonia": "I : คนไข้ติดเชื้อ",
+  "การเกิดติดเชื้อดื้อยา": "I : คนไข้ติดเชื้อ",
+  "การเกิดระบาดโรคอุบัติใหม่ อุบัติซ้ำ": "I : คนไข้ติดเชื้อ",
+  "เกิด Sepsis ในโรค Acute cholecystitis": "I : คนไข้ติดเชื้อ",
+  "เกิด Sepsis ในโรค Cellulitis": "I : คนไข้ติดเชื้อ",
+  "เกิด Sepsis/Emphysema/IRDS/Hypoxia ในโรค Pneumonia": "I : คนไข้ติดเชื้อ",
+  "เกิดการติดเชื้อในกระแสโลหิตจากการสอดใส่สายสวนทางหลอดเลือดดำส่วนปลาย (Peripheral Line Associated Bloodstream -PLABSI)": "I : คนไข้ติดเชื้อ",
+  "เกิดการระบาดของโรคที่ป้องกันได้ด้วยวัคซีน (Vaccine Preventable Disease) ภายในโรงพยาบาล": "I : คนไข้ติดเชื้อ",
+  "เกิดภาวะ Sepsis/Malnutrition ใน Steven Johnson Syndrome": "I : คนไข้ติดเชื้อ",
+  "เกิดภาวะ Septic shock ในโรค Acute pyelonephritis": "I : คนไข้ติดเชื้อ",
+  "เกิดภาวะ Septic shock/Cardiac arrest ใน Sepsis": "I : คนไข้ติดเชื้อ",
+  "บุคลากรไม่ให้ความร่วมมือในการปฏิบัติตามมาตรการควบคุม COVID-19": "I : คนไข้ติดเชื้อ",
+  "ผู้ป่วย/ญาติ ป่วยไม่ได้ป้องกันการแพร่เชื้อ": "I : คนไข้ติดเชื้อ",
+  "ผู้ป่วยติดเชื้อในโรงพยาบาล": "I : คนไข้ติดเชื้อ",
+  "ผู้ป่วยเสียชีวิตในโรงพยาบาล - จากการติดเชื้อในกระแสเลือด (Sepsis with Death)": "I : คนไข้ติดเชื้อ",
+  "แผลถอนฟันหายช้าและติดเชื้อ ในผู้ป่วย HIV/Immunosuppressive/On steroid": "I : คนไข้ติดเชื้อ",
+  "มีการแพร่กระจายเชื้อใน รพ.": "I : คนไข้ติดเชื้อ",
+  "ไม่ได้คัดแยกผ้าเปื้อน": "I : คนไข้ติดเชื้อ",
+  "ไม่ล้างมือ/ล้างไม่เหมาะสมตามข้อบ่งชี้ของการทำความสะอาดมือ (5 moments for hand hygiene)": "I : คนไข้ติดเชื้อ",
+  "การไม่ปฏิบัติตามแนวทางป้องกันการแพร่กระจายเชื้อก่อโรคในสถานพยาบาล Standard Precautions (ยกเว้นการล้างมือ)": "I : บุคลากรติดเชื้อ",
+  "เจ้าหน้าที่ ติดเชื้อจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "เจ้าหน้าที่ ถูกของมีคม/เข็ม": "I : บุคลากรติดเชื้อ",
+  "เจ้าหน้าที่ ไม่ปฏิบัติตามหลัก UP": "I : บุคลากรติดเชื้อ",
+  "เจ้าหน้าที่ สัมผัส สารคัดหลัง/เชื้อโรค/สิ่งสกปก": "I : บุคลากรติดเชื้อ",
+  "เจ้าหน้าที่ป่วย ไม่ได้ป้องกันโรคแพร่เชื้อ": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อ HIV จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อไข้เลือดออกจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อไข้หวัดใหญ่จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อซิก้าจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อที่แพร่ทางการสัมผัสอื่นๆ จากการปฏิบัติงาน (ที่ไม่ใช่ HIV, Hep B, Hep C, เหา)": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อที่แพร่ทางอากาศอื่นๆ (ที่ไม่ใช่ วัณโรค หัดและอีสุกอีใส) จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อที่แพร่ผ่านพาหะอื่นๆ จากการปฏิบัติงาน (ที่ไม่ใช่ไข้เลือดออก, ซิก้า)": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อที่แพร่ผ่านละอองฝอยอื่นๆ (ที่ไม่ใช่ ไข้หวัดใหญ่และหัดเยอรมัน) จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อวัณโรคจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อไวรัสตับอักเสบซี (Hepatitis C) จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อไวรัสตับอักเสบบี (Hepatitis B) จากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อหัดจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้อหัดเยอรมันจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเชื้ออีสุกอีใสจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรติดเหาจากการปฏิบัติงาน": "I : บุคลากรติดเชื้อ",
+  "บุคลากรแต่งกายไม่ถูกต้องตามแนวทางการป้องกันการติดเชื้อ": "I : บุคลากรติดเชื้อ",
+  "บุคลากรมีความเสี่ยงต่อการติดเชื้อทางเดินอากาศ เช่น สัมผัสใกล้ชิดกลุ่มเสี่ยง หรือผู้ติดเชื้อ COVID-19": "I : บุคลากรติดเชื้อ",
+  "บุคลากรไม่ได้รับการป้องกันการติดเชื้อหลังสัมผัสเชื้อที่อาจก่อโรคได้จากการปฏิบัติงาน (post-exposure prophylaxis, passive immunization)": "I : บุคลากรติดเชื้อ",
+  "บุคลากรไม่ได้รับการสร้างภูมิคุ้มกันโรคก่อนสัมผัส (pre-exposure prophylaxis, active immunization) เหมาะสมตามลำดับความสำคัญและหน้าที่": "I : บุคลากรติดเชื้อ",
+  "ผู้ป่วย / ญาติ ปกปิดข้อมูลการเดินทางจากพื้นที่เสี่ยงต่อการติดเชื้อ COVID-19": "I : บุคลากรติดเชื้อ",
+  "ผู้รับบริการไม่ให้ความร่วมมือในการปฏิบัติตามมาตรการควบคุม COVID-19": "I : บุคลากรติดเชื้อ",
+  "พบการติดเชื้อหรือเสี่ยงต่อการติดเชื้อ ของบุคคลภายนอกที่มาปฏิบัติงานภายในโรงพยาบาล": "I : บุคลากรติดเชื้อ",
+  "lab ส่งตรวจคลาดเคลื่อน/ไม่ถูกต้อง": "L : รายงาน LAB คลาดเคลื่อน",
+  "เก็บ lab (specimen) ผิดวิธี": "L : รายงาน LAB คลาดเคลื่อน",
+  "เจาะเลือด - ผิดเทคนิค/วิธีการ": "L : รายงาน LAB คลาดเคลื่อน",
+  "เตรียมตรวจ/ ตรวจทางรังสีผิดพลาด (เช่น ผิดประเภท/ ผิดคำสั่ง/ ผิดตำแหน่ง/ ผิดข้าง/ ผิดเทคนิคการตรวจ)": "L : รายงาน LAB คลาดเคลื่อน",
+  "ไม่ได้รายงานผล Chest x-ray แก่แพทย์": "L : รายงาน LAB คลาดเคลื่อน",
+  "ไม่ได้รายงานผล x-ray AP lateral แก่แพทย์": "L : รายงาน LAB คลาดเคลื่อน",
+  "ไม่ได้รายงานผล x-ray LS spine แก่แพทย์": "L : รายงาน LAB คลาดเคลื่อน",
+  "ไม่ได้ส่งตรวจทางห้อง lab": "L : รายงาน LAB คลาดเคลื่อน",
+  "ไม่รายงานผล EKG แก่แพทย์": "L : รายงาน LAB คลาดเคลื่อน",
+  "รายงานผล Lab คลาดเคลื่อน": "L : รายงาน LAB คลาดเคลื่อน",
+  "รายงานผล Lab ผิดคน": "L : รายงาน LAB คลาดเคลื่อน",
+  "ส่ง lab (specimen) สลับหลอด": "L : รายงาน LAB คลาดเคลื่อน",
+  "ส่ง lab ตรวจล่าช้า (specimen)": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - specimen ไม่เหมาะสมกับการตรวจ": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - ผลการตรวจคลาดเคลื่อน": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - ผลการตรวจหาย": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - ไม่รายงานค่าวิกฤต (Critical Test Results) หรือรายงานล่าช้า": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - รายงานผลการตรวจไม่ครบ": "L : รายงาน LAB คลาดเคลื่อน",
+  "ห้องlab - รายงานผลการตรวจล่าช้า": "L : รายงาน LAB คลาดเคลื่อน",
+  "Pre-Dispensing Error - Robot จัดยา เม็ดยาแตก / หัก / บิ่น / เยิ้ม /หรืออื่น ๆ ที่ทำให้เสียสภาพของเม็ดยา": "M : ความคลาดเคลื่อนทางยา",
+  "Pre-Dispensing Error - Robot จัดยาผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "Pre-Dispensing Error - Robot จัดยาผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "Pre-Dispensing Error - Robot จัดยาผิดซอง": "M : ความคลาดเคลื่อนทางยา",
+  "Pre-Dispensing Error - Robot จัดยาไม่ลงซอง": "M : ความคลาดเคลื่อนทางยา",
+  "การ Hold ยาก่อนการรักษา ECT ไม่ตรงกันระหว่าง Doctor order กับใบยาที่ต้องหยุดของเภสัชกร": "M : ความคลาดเคลื่อนทางยา",
+  "เกิด Administration Error จากหอผู้ป่วย ไม่ได้ส่ง Order มาปรับยา กรณีแพทย์สั่งยา Plan D/C": "M : ความคลาดเคลื่อนทางยา",
+  "เกิด Allergy to Local anesthesia ใน Dental Tx": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - เกินคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - ความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - จัดยาที่ต้อง Hold ยามา": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - จำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - ชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - ผิดรูปแบบ (Dosage Form)": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - ไม่ครบรายการยา": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - ยาปนกัน": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - วิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "จัดยาผิด - สลับซอง": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - Fatal DI ที่เป็นข้อห้ามใช้": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - จ่ายยาที่ต้อง Hold ยามา": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ชื่อผิด": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - นอกเหนือคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ในผู้ป่วยที่มีประวัติแพ้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดรูปแบบ": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ไม่ครบรายการยา": "M : ความคลาดเคลื่อนทางยา",
+  "จ่ายยาผิด - ยาเสื่อมสภาพ/หมดอายุ": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - เกินคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "เช๊คยาผิดก่อนจ่าย - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ไม่ครบรายการยา": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ยาปนกัน": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ยาผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "เช็คยาผิดก่อนจ่าย - ยาสลับซอง": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา  - ซ้ำซ้อน": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - นอกเหนือคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ในผู้ป่วยที่มีประวัติแพ้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดเทคนิค": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดรูปแบบของยา": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "เตรียมยา - ไม่ได้ตามคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "ทำยาหล่น / แตก / เสียหาย ก่อนการบริหารยาให้ผู้ป่วย": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - นอกเหนือคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดรูปแบบของยา": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดวิถีทาง": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ผิดเวลา": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ไม่ได้ยาตามแพทย์สั่ง": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ให้ยาซ้ำซ้อน": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ให้ยาในผู้ป่วยแพ้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา - ให้ยาผิดเทคนิค": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยา ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยาผิด - เกินคำสั่งแพทย์ (จากการไม่ได้ Hold ยาก่อน ECT)": "M : ความคลาดเคลื่อนทางยา",
+  "บริหารยาผิด - บริหารยาที่ต้อง Hold ยา": "M : ความคลาดเคลื่อนทางยา",
+  "ปรับยา ไม่มีใบ order ปรับยามาให้": "M : ความคลาดเคลื่อนทางยา",
+  "ปรับยาตามคำสั่งแพทย์ แต่ไม่ได้บันทึกในระบบ HOSxP และ Drug Profile": "M : ความคลาดเคลื่อนทางยา",
+  "ปรับยาตามคำสั่งแพทย์และบันทึกใน Drug Profile  แต่ไม่ได้บันทึกในระบบ HOSxP": "M : ความคลาดเคลื่อนทางยา",
+  "ปรับยาใน HOSxP แต่ไม่ได้แก้ไข Drug Profile": "M : ความคลาดเคลื่อนทางยา",
+  "ผลข้างเคียงจากยาหย่อนกล้ามเนื้อ : ภาวะไข้สูงอย่างรุนแรงที่เกิดจากการตอบสนองต่อยาระงับความรู้สึกที่มากผิดปกติ (Malignant hyperthermia)": "M : ความคลาดเคลื่อนทางยา",
+  "ผลข้างเคียงจากยาหย่อนกล้ามเนื้อ : ภาวะโปตัสเซียมในเลือดสูง (Hyperkalemia)": "M : ความคลาดเคลื่อนทางยา",
+  "ผลข้างเคียงจากยาหย่อนกล้ามเนื้อ : หยุดหายใจนาน (Prolonged apnea)": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วย/ญาติ บอกว่าได้รับยาผิด": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วย/ญาติ บอกว่าได้รับยาไม่ครบ": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยเกิด ADR : Anticholinergic effect": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยเกิด ADR : EPS - Tardive Dyskinesia (TD)": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยเกิด ADR : Oversedation (หลับลึก หลับเยอะ)": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยฉีดยาไม่ตรงตามกำหนด": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยได้รับยา ในกลุ่ม Look-Alike Sound-Alike Medication Names": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยได้รับยาซ้ำซ้อนจากไม่ได้ทำ Medication Reconciliation": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยได้รับยาที่มีคู่ยาปฏิกิริยารุนแรง": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยได้รับยาที่มีปฏิกิริยากันโดยไม่ได้ทำ Medication Reconciliation": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยมีภาวะแทรกซ้อนหรือเหตุการณ์ไม่พึงประสงค์จากการใช้ Opioids ในการระงับปวดเรื้องรังที่มิใช่มะเร็ง": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยไม่ได้รับยาเดิมต่อเนื่องจากไม่ได้ทำ Medication Reconciliation": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยไม่ได้รับยาตามที่แพทย์สั่ง - ผู้ป่วยทำยาหาย": "M : ความคลาดเคลื่อนทางยา",
+  "ผู้ป่วยไม่ได้รับยาตามแพทย์สั่ง จากการไม่แจ้งเลื่อน ECT": "M : ความคลาดเคลื่อนทางยา",
+  "พยาบาลไม่ได้ส่ง Doctor order ไปปรับการ Hold ยา ก่อน ECT": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - นอกเหนือคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - บันทึกข้อมูลยาซ้ำซ้อน": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ไม่ครบรายการยา": "M : ความคลาดเคลื่อนทางยา",
+  "พิมพ์คำสั่งการใช้ยา - ไม่ได้ลงข้อมูลยา": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - Fatal DI ที่เป็นข้อห้าม": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - เกินขนาด (overdose)": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - คำสั่งใช้ยาไม่ชัดเจน": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ด้วยลายมืออ่านไม่ออก": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ตัวย่อที่ไม่ได้เป็นสากล": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ผิดความแรง / ขนาด": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ผิดจำนวน": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ผิดชนิด": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ไม่ครบถ้วน": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ไม่ครบรายการยา": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - ไม่ปฏิบัติตามแนวทางการสั่งใช้ยาในระบบ HOSxP": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - สั่งยาซ้ำ": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา - สั่งยาผู้ป่วยที่ไม่มียามาด้วย": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา ที่มีวิถีทางไม่เหมาะสม": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา ในผู้ป่วยที่มีประวัติแพ้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "แพทย์สั่งใช้ยา บริหารยาไม่ได้": "M : ความคลาดเคลื่อนทางยา",
+  "แพ้ยาซ้ำ": "M : ความคลาดเคลื่อนทางยา",
+  "ภาวะไข้สูงอย่างรุนแรงที่เกิดจากการตอบสนองต่อยาระงับความรู้สึกที่มากผิดปกติ (Malinant hyperthermia)": "M : ความคลาดเคลื่อนทางยา",
+  "เภสัชกร Verified ใบสั่งยาคลาดเคลื่อน": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ได้ Off ยาตามที่แพทย์สั่งให้ Off ไว้ล่วงหน้า หรือที่มีการกำหนดจำนวนวันที่ใช้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ได้นำส่ง Order Admit แก่กลุ่มงานเภสัชกรรม": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ได้สื่อสารการกำหนดวัน ECT เพื่อให้ห้องยา Hold ยา ตามคำสั่งแพทย์": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ปฏิบัติตามแนวทาง การใช้ยานอกบัญชีหลักแห่งชาติ": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ปฏิบัติตามแนวทาง ผู้ป่วยแพ้ยา": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่ปฏิบัติตามแนวทางการเขียน/พิมพ์ ใบสั่งยา": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่มี/ไม่ปฏิบัติตาม Guideline เกี่ยวกับ Look-Alike Sound-Alike Medication Names": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่มี/ไม่ปฏิบัติตาม Guideline เกี่ยวกับ Medication Reconciliation": "M : ความคลาดเคลื่อนทางยา",
+  "ไม่มี/ไม่ปฏิบัติตาม Guideline ของการใช้ Fatal Drug": "M : ความคลาดเคลื่อนทางยา",
+  "ยาสูญหาย / หาไม่พบ ระหว่างกระบวนการส่งมอบยาจากกลุ่มงานเภสัชกรรมไปยังหอผู้ป่วยหรือห้องฉุกเฉิน": "M : ความคลาดเคลื่อนทางยา",
+  "ระบุวันที่ / เวลาใช้ยาคลาดเคลื่อน เช่น วันที่/เวลา ที่ฉีดยา": "M : ความคลาดเคลื่อนทางยา",
+  "ส่ง Order ผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "ส่งกล่องยาผิดคน": "M : ความคลาดเคลื่อนทางยา",
+  "ส่งกล่องยาไม่ตรงหอผู้ป่วย": "M : ความคลาดเคลื่อนทางยา",
+  "สั่งใช้ยาคลาดเคลื่อน จากการรับคำสั่งแพทย์ (รคส.) - ผิดความแรง": "M : ความคลาดเคลื่อนทางยา",
+  "สั่งใช้ยาคลาดเคลื่อน จากการรับคำสั่งแพทย์ (รคส.) - ผิดวิธีใช้": "M : ความคลาดเคลื่อนทางยา",
+  "หอผู้ป่วยในไม่ได้ส่ง Order มาปรับยา": "M : ความคลาดเคลื่อนทางยา",
+  "กระบวนการปฏิบัติงาน/ขั้นตอนการดำเนินงานในการให้เลือดผู้ป่วยคลาดเคลื่อนจากข้อกำหนด (Right blood right patient, RBRP)": "M : ให้เลือดผิดพลาด",
+  "การมีปฏิกิริยาจากการได้รับเลือด (Transfusion reaction)**": "M : ให้เลือดผิดพลาด",
+  "การไม่ปฏิบัติตามข้อกำหนด (Specific requirements not met, SRNM) ซึ่งเป็นเหตุให้ผู้ป่วยได้รับส่วนประกอบของเลือดที่ไม่เป็นไปตามที่กำหนด": "M : ให้เลือดผิดพลาด",
+  "การให้เลือดที่ไม่เหมาะสม (Inappropiate transfusion)": "M : ให้เลือดผิดพลาด",
+  "การให้เลือดผิด (Incorrect blood component transfused, IBCT หรือ Wrong blood transfused)": "M : ให้เลือดผิดพลาด",
+  "เกิดความผิดพลาดในการนำส่งและจัดเก็บส่วนประกอบของเลือด (Handling and storage errors, HSE)": "M : ให้เลือดผิดพลาด",
+  "ผู้ป่วยเกิด ADR : Agranulocytosis": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : EPS - Acute Dystonia": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : EPS - Akathisia": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : EPS - Pseudoparkinsonism": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Hyperprolactinemia เช่น น้ำนมไหล / เต้านมโต / ประจำเดือนมาไม่ปกติ / กระดูกพรุน": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Lithium Intoxication": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Neuroleptic Malignant Syndrome (NMS)": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Severe EPS (ระดับ E ขึ้นไป)": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Steven Johnson Syndrome (SJS)": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : Transient Elevation of Hepatic Enzyme (Abnormal LFT)": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยเกิด ADR : อื่น ๆ (ระดับ E ขึ้นไป)": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยมีภาวะแทรกซ้อนจาก IM/IV": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยมีภาวะแทรกซ้อนที่ป้องกันได้จากการได้รับยาความเสี่ยงสูง": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยมีอาการ Akathisia จากการได้รับยากลุ่ม Antipsychotic / ผู้ป่วยไม่สามารถควบคุมตนเองได้กระโดดอยู่กับที่": "M : อาการไม่พึงประสงค์จากยา",
+  "ผู้ป่วยมีอาการ Dystonia จากยา Antipsychotic": "M : อาการไม่พึงประสงค์จากยา",
+  "ไม่ได้ปฏิบัติตามแนวทาง HAD": "M : อาการไม่พึงประสงค์จากยา",
+  "เก็บแฟ้มเวชระเบียน ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ตรวจรักษา ผู้ป่วยผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ตอบ refer ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "บันทึกข้อมูลในโปรแกรม HOSxP ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "บันทึกเลขบัตรประจำตัวประชาชนผิด (ID)": "P : ระบุตัวตนผู้ป่วยผิด",
+  "บันทึกเวชระเบียน ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ผู้ป่วยใช้ชื่อผู้อื่นเข้ารับการรักษา": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ไม่ติดชื่อผู้ป่วยที่กล่องยา / Tube specimen / สิ่งส่งตรวจ / แฟ้มเวชระเบียน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ระบุตัวผู้ป่วยผิดคน (ที่ไม่มีในเมนูรายการความเสี่ยงเดิม)": "P : ระบุตัวตนผู้ป่วยผิด",
+  "รูปถ่ายผู้ป่วยไม่เป็นปัจจุบัน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "เวชระเบียน ขึ้นทะเบียนผู้ป่วยซ้ำคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "เวชระเบียน สลับกัน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "เวชระเบียนติดกัน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "เวชระเบียนผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ส่ง lab (specimen) ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ส่งตรวจ/ขึ้นแฟ้มประวัติ ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ส่งผู้ป่วยเข้ากลุ่ม / Intervention ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "สื่อสาร/ส่งต่อข้อมูลผู้ป่วยผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ให้การรักษาด้วยไฟฟ้า (ECT) ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ออกใบ Refer ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ออกใบนัด ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "ออกหนังสือราชการ /การแพทย์ ผิดคน": "P : ระบุตัวตนผู้ป่วยผิด",
+  "Misdiagnosis or delay diagnosis Refer in": "P : วินิจฉัยคลาดเคลื่อน",
+  "Miss diagnosis or delay diagnosis จนเกิดความรุนแรงระดับ G, H, I": "P : วินิจฉัยคลาดเคลื่อน",
+  "refer ผู้ป่วยไปรักษาทางกาย ภายใน 24 ชม.": "P : วินิจฉัยคลาดเคลื่อน",
+  "refer ผู้ป่วยไปรับการรักษา ภายใน 72 ชม.": "P : วินิจฉัยคลาดเคลื่อน",
+  "ตรวจร่างกายก่อน admits ไม่ครบถ้วน": "P : วินิจฉัยคลาดเคลื่อน",
+  "ผู้ป่วยจิตเวชที่มีภาวะแทรกซ้อนทางกาย ภายใน 24 ชั่วโมง": "P : วินิจฉัยคลาดเคลื่อน",
+  "ผู้ป่วยได้รับการตรวจรักษาในห้องฉุกเฉินนานมากกว่า 4 ชั่วโมงก่อนการจำหน่ายกลับบ้าน": "P : วินิจฉัยคลาดเคลื่อน",
+  "ไม่ได้คัดกรองโรคทางกาย/โรคแพร่เชื้อ": "P : วินิจฉัยคลาดเคลื่อน",
+  "ย้ายผู้ป่วยไปหอ ICU โดยไม่ได้วางแผนล่วงหน้า": "P : วินิจฉัยคลาดเคลื่อน",
+  "รับ admits ผู้ป่วย ER revisit ภายใน 24 ชม.": "P : วินิจฉัยคลาดเคลื่อน",
+  "Endophthalmitis ใน ECCE": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Endophthalmitis ใน Phaco with IOL": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Intraoperative or immediately postoperative/post procedure death in an ASA PS I patient": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Iris prolapsed ใน ECCE": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Perioperative hemorrhage or hematoma": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Postoperative Acute Kidney Injury Requiring Dialysis": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Postoperative Hip Fracture": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Postoperative Respiratory failure": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Postoperative Sepsis": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Postoperative Wound dehiscence": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Rupture posterior capsule ใน ECCE": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Rupture posterior capsule ใน Phaco with IOL": "S : ผ่าตัด / ECT ปลอดภัย",
+  "Wrong implant/prosthetic": "S : ผ่าตัด / ECT ปลอดภัย",
+  "กระจกตาบวม ใน ECCE": "S : ผ่าตัด / ECT ปลอดภัย",
+  "กระจกตาบวม ใน Phaco with IOL": "S : ผ่าตัด / ECT ปลอดภัย",
+  "กระดูกแตกหัก (Fracture)/กระดูกเคลื่อน (Dislocation) จากการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "กล้ามเนื้อห้วใจตาย (Myocardial infarction) หลังกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "กลุ่มอาการลิ่มไขมันจุกหลอดเลือด (Fat Embolism) หลังกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "การขาดออกซิเจน (Hypoxia) จากกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "การชักนานเกินไป (Prolong seizure) \"นานกว่า 180 วินาที\"": "S : ผ่าตัด / ECT ปลอดภัย",
+  "การชักไม่สมบูรณ์  (Inadequate seizure) \"ไม่ถึง 20 วินาที\"": "S : ผ่าตัด / ECT ปลอดภัย",
+  "การเตรียมผู้ป่วยก่อนรักษาด้วยไฟฟ้าไม่ครอบคลุม": "S : ผ่าตัด / ECT ปลอดภัย",
+  "การสูดสำลัก (Pulmonary Aspiration) หลังกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดปัญหา in VBAC (Vaginal Birth after Cesarean) เช่น Uterine rupture/ตกเลือด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะ Venous Thromboembolism (VTE) หลังผ่าตัด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนจากการรักษาด้วยไฟฟ้า (ECT)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Hip replacement เช่น Dislocation/Sciatic nerve injury/Hematoma/Fracture": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Laminectomy/Discectomy เช่น Cauda equina syndrome/Nerve root injury": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Oral surgery/Simple-Surgical extraction เช่น Bleeding/Pain and Swelling/Fibrinolytic alveolitis": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Thyroidectomy (เช่น Nerve injury/Hematoma/Hypoparathyroidism/Dysphagia)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Tonsillectomy (เช่น Bleeding/Nasopharyngeal stenosis)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนใน Total knee replacement เช่น Active blood loss/spinal shock": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะแทรกซ้อนในการทำ Tracheostomy Tube (เช่น Subcutaneous Emphysema/Bleeding/Pneumothorax/T-E fistula/Nerve injury)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เกิดภาวะวิกฤติ ใน Abort (เช่น Embolism/Shock)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ความดันโลหิตต่ำรุนแรง (Severe Hypotension) หลังกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ความดันโลหิตสูงรุนแรง (Severe Hypertension) หลังกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ทารกเสียชีวิตจากการคลอด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ทำ Perm-cath insertion แล้วเกิด Bleeding/Pneumothorax": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : กระดูกเคลื่อน": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : คลื่นไส้อาเจียน": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ชักซ้ำหลังชักไปแล้วระหว่าง ECT (Tardive seizure)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ชักนานกว่า 5 นาที (Status epilepticus)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ชักยาวนาน (Prolong seizurs)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ปวดกล้ามเนื้อ": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ปวดศีรษะ": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ปากเป็นแผล": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : ภาวะสับสนหลังชัก (Postictal confusional state)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผลข้างเคียงหลังการรักษาด้วย ECT : อาการผิดปกติทางระบบประสาทหลัง ECT (Todd phenomena)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผ่าตัดผิดชนิด (Wrong surgical or other invasive procedure performed on a patient)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผู้ป่วยเกิดอุบัติเหตุระหว่างการรักษาด้วยไฟฟ้า": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผู้ป่วยเกิดอุบัติเหตุหลังการรักษาด้วยไฟฟ้า ขณะเดินทางไปยังหอผู้ป่วย": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผู้ป่วยเกิดอุบัติเหตุหลังการรักษาด้วยไฟฟ้า ขณะอยู่ในหอผู้ป่วย": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผู้ป่วยเกิดอุบัติเหตุหลังรักษาด้วยไฟฟ้า ขณะอยู่ห้องพักฟื้น": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ภาวะแทรกซ้อนจากการคลอดที่ป้องกันได้เกิดขึ้นกับทารก (Birth Injury)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ภาวะแทรกซ้อนจากการคลอดที่ป้องกันได้เกิดขึ้นกับมารดา": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ภาวะแทรกซ้อนจากเครื่องมือ/อุปกรณ์เกี่ยวกับการผ่าตัด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ภาวะหัวใจหยุดเต้นระหว่างผ่าตัดในผู้ป่วย ASA PS I, II": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ภูมิแพ้รุนแรงเฉียบพลัน (Anaphylaxis) จากกระบวนการ ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "มารดาเสียชีวิตจากการคลอด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่เกิดการชัก (Missed seizure)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่งดน้ำและอาหาร 8 - 12 ชั่วโมงก่อน ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่ได้ถอดฟันปลอม ก่อน ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่ได้ปรึกษาแพทย์เฉพาะทางตามโรคทางกาย เพื่อพิจารณารักษา Modified ECT ตามความจำเป็น": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่ได้ยา Premed ผู้ป่วยที่มีโรคประจำตัวก่อน ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ไม่ได้รับการตรวจฟันก่อน ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ระยะชักไม่เพียงพอ (Inadequate generalized seizure) ไม่อยู่ในช่วง 25 - 30 วินาที": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เสียชีวิต หลัง ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "หยุดการรักษาด้วยไฟฟ้าECT (ยังไม่ครบ)": "S : ผ่าตัด / ECT ปลอดภัย",
+  "หัวใจหยุดเต้น หลัง ECT": "S : ผ่าตัด / ECT ปลอดภัย",
+  "เหตุการณ์ไม่พึงประสงค์ จากการไม่ปฏิบัติตามขั้นตอนกระบวนการดูแลผู้ป่วยที่มารับการผ่าตัด": "S : ผ่าตัด / ECT ปลอดภัย",
+  "ผู้ป่วยตกเตียง/เก้าอี้/โต๊ะ": "A : Accident",
+  "ผู้ป่วยล้ม": "A : Accident",
+  "ผู้ป่วยพยายามหลบหนี": "E : Escape",
+  "ผู้ป่วยหลบหนีขณะรอทำการรักษา ECT": "E : Escape",
+  "ผู้ป่วยหลบหนีไม่สำเร็จ": "E : Escape",
+  "ผู้ป่วยหลบหนีระหว่างเดินทางมาศูนย์ ECT": "E : Escape",
+  "ผู้ป่วยหลบหนีสำเร็จ": "E : Escape",
+  "ผู้ป่วยหลบหนีหลังทำการรักษา ECT": "E : Escape",
+  "ผู้ป่วยฆ่าตัวตายสำเร็จ": "S : Suicide",
+  "ผู้ป่วยพยายามฆ่าตัวตาย": "S : Suicide",
+  "ผู้ป่วยก้าวร้าว รุนแรง": "V : Violence",
+  "ผู้ป่วยทำร้ายกัน": "V : Violence",
+  "ผู้ป่วยทำร้ายเจ้าหน้าที่ / บุคลากรถูกผู้ป่วยทำร้าย": "V : Violence",
+  "ผู้ป่วยทำร้ายเจ้าหน้าที่ขณะรอทำการรักษา ECT": "V : Violence",
+  "ผู้ป่วยทำร้ายตนเอง": "V : Violence",
+  "ผู้ป่วยทำร้ายผู้ป่วยอื่นขณะรอทำการรักษา ECT": "V : Violence",
+  "ผู้ป่วยทำลายสิ่งของ": "V : Violence"
+            // ถ้ามีอันใหม่เอามาใส่ต่อได้เลย
         };
 
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
         const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
-        // ==========================================
-        // GOD-MODE Date Parser: จัดการ "7-ต.ค.-67" และทุกรูปแบบในเอกภพ
-        // ==========================================
         function normalizeDate(dateStr) {
             if (!dateStr) return null;
             try {
-                let cleanStr = dateStr.toString().trim().split(' ')[0]; // เอาเฉพาะส่วนวันที่
+                let cleanStr = dateStr.toString().trim().split(' ')[0];
                 let y, m, d;
-                let hasThaiMonth = false;
-
-                // ตรวจจับหาเดือนภาษาไทย (ม.ค., ก.พ. ฯลฯ)
+                
                 for (let i = 0; i < 12; i++) {
                     if (cleanStr.includes(thaiMonthsShort[i]) || cleanStr.includes(thaiMonthsFull[i])) {
-                        m = i + 1; // เจอเดือนแล้ว (1-12)
-                        hasThaiMonth = true;
-                        
-                        // แตกข้อความโดยใช้ชื่อเดือนเป็นตัวตัด
-                        let parts = cleanStr.replace(thaiMonthsShort[i], '-').replace(thaiMonthsFull[i], '-').split(/[-/\s]+/);
-                        parts = parts.filter(p => p.trim() !== ''); // ลบค่าว่าง
-                        
-                        if (parts.length >= 2) {
-                            d = parseInt(parts[0].replace(/\D/g, ''));
-                            y = parseInt(parts[1].replace(/\D/g, ''));
-                        }
+                        m = i + 1;
+                        let p = cleanStr.replace(thaiMonthsShort[i], '-').replace(thaiMonthsFull[i], '-').split(/[-/]+/);
+                        p = p.filter(v => v !== '');
+                        d = parseInt(p[0].replace(/\D/g, ''));
+                        y = parseInt(p[1].replace(/\D/g, ''));
                         break;
                     }
                 }
 
-                // ถ้าไม่เจอเดือนภาษาไทย ให้ถือว่าเป็นตัวเลขปกติ (เช่น 07/10/2567 หรือ 2567-10-07)
-                if (!hasThaiMonth) {
+                if (!m) {
                     let p = cleanStr.split(/[-/]/);
                     if (p.length < 3) return null;
-
                     let n0 = parseInt(p[0].replace(/\D/g, ''));
                     let n1 = parseInt(p[1].replace(/\D/g, ''));
                     let n2 = parseInt(p[2].replace(/\D/g, ''));
-
-                    if (isNaN(n0) || isNaN(n1) || isNaN(n2)) return null;
-
-                    if (n0 > 1000) { y = n0; m = n1; d = n2; }      // รูปแบบ YYYY-MM-DD
-                    else if (n2 > 1000) { y = n2; m = n1; d = n0; } // รูปแบบ DD-MM-YYYY
-                    else if (n2 >= 60 && n2 <= 99) { y = n2; m = n1; d = n0; } // รูปแบบ DD-MM-YY (ไทย)
-                    else return null;
+                    if (n0 > 2400) { y = n0; m = n1; d = n2; }
+                    else if (n2 > 2400) { y = n2; m = n1; d = n0; }
+                    else if (n0 > 1900) { y = n0 + 543; m = n1; d = n2; }
+                    else if (n2 > 1900) { y = n2 + 543; m = n1; d = n0; }
+                    else { y = n2 + 2500; m = n1; d = n0; }
                 }
 
-                if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
-
-                // จัดการปี (แปลงให้เป็น พ.ศ. 4 หลักเสมอ)
-                if (y < 100) {
-                    y = y + 2500; // เช่น 67 -> 2567
-                } else if (y >= 1900 && y < 2400) {
-                    y = y + 543;  // ถ้าแอบเป็น ค.ศ. มา ให้บวก 543
-                }
-
-                if (m === 0) m = 1;
-                if (d === 0) d = 1;
+                if (y < 2500) y += 543; if (y < 2500) y += 2500; 
 
                 return {
                     strCE: `${y - 543}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`,
                     intBE: (y * 10000) + (m * 100) + d,
-                    year: y,
-                    month: m,
-                    day: d
+                    year: y, month: m, day: d
                 };
-            } catch (e) {
-                return null;
-            }
+            } catch (e) { return null; }
         }
 
         document.getElementById('csvFileMain').addEventListener('change', handleFileUpload);
@@ -295,14 +583,12 @@
         function handleFileUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             document.getElementById('headerFileName').innerText = "ไฟล์: " + file.name;
 
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    // map และกรองเฉพาะที่แปลงวันที่สำเร็จ
                     rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']).map(row => {
                         row._dateObj = normalizeDate(row['วันที่เกิดเหตุ']);
                         return row;
@@ -310,27 +596,20 @@
 
                     if (rawData.length > 0) {
                         currentFilteredData = [...rawData];
-                        
                         initDateRange();
                         initSlicers();
-                        
                         document.getElementById('welcomeScreen').style.display = 'none';
                         document.getElementById('mainDashboard').style.display = 'block';
-                        
                         processData(currentFilteredData);
-                    } else {
-                        alert("ไม่พบข้อมูลที่สมบูรณ์ในไฟล์ CSV หรือไฟล์ผิดรูปแบบ (ตรวจสอบคอลัมน์ 'วันที่เกิดเหตุ')");
                     }
                 }
             });
         }
 
         function initDateRange() {
-            if(rawData.length === 0) return;
             const sortedInts = rawData.map(r => r._dateObj.intBE).sort((a, b) => a - b);
             const minDate = rawData.find(r => r._dateObj.intBE === sortedInts[0]);
             const maxDate = rawData.find(r => r._dateObj.intBE === sortedInts[sortedInts.length - 1]);
-
             document.getElementById('startDate').value = minDate._dateObj.strCE;
             document.getElementById('endDate').value = maxDate._dateObj.strCE;
         }
@@ -339,252 +618,173 @@
             for (const [colName, elementId] of Object.entries(filterFields)) {
                 let uniqueValues = [...new Set(rawData.map(item => item[colName] || 'ไม่ระบุ'))].filter(v => v !== 'ไม่ระบุ').sort();
                 let options = uniqueValues.map(v => ({id: v, title: v}));
-                
-                if(tomSelects[elementId]) {
-                    tomSelects[elementId].destroy();
-                }
-                
-                let selectEl = document.getElementById(elementId);
-                selectEl.innerHTML = ''; 
+                if(tomSelects[elementId]) tomSelects[elementId].destroy();
                 tomSelects[elementId] = new TomSelect(`#${elementId}`, { ...tsConfig, options: options });
             }
         }
 
-        function resetFilters() {
-            initDateRange();
-            for (const key in tomSelects) {
-                tomSelects[key].clear(true); 
-            }
-            applyFilters();
-        }
-
         function applyFilters() {
-            const startCE = document.getElementById('startDate').value; 
+            const startCE = document.getElementById('startDate').value;
             const endCE = document.getElementById('endDate').value;
-            
             const startInt = startCE ? parseInt(startCE.replace(/-/g, '')) + 5430000 : 0;
             const endInt = endCE ? parseInt(endCE.replace(/-/g, '')) + 5430000 : 99999999;
             
             const selectedFilters = {};
             for (const [colName, elementId] of Object.entries(filterFields)) {
-                const selectedVals = tomSelects[elementId].getValue();
-                if (selectedVals && selectedVals.length > 0) {
-                    selectedFilters[colName] = Array.isArray(selectedVals) ? selectedVals : [selectedVals];
-                }
+                const vals = tomSelects[elementId].getValue();
+                if (vals && vals.length > 0) selectedFilters[colName] = vals;
             }
 
             currentFilteredData = rawData.filter(row => {
                 if (row._dateObj.intBE < startInt || row._dateObj.intBE > endInt) return false;
-                
                 for (const colName in selectedFilters) {
-                    const rowValue = row[colName] || 'ไม่ระบุ';
-                    if (!selectedFilters[colName].includes(rowValue)) return false;
+                    if (!selectedFilters[colName].includes(row[colName] || 'ไม่ระบุ')) return false;
                 }
                 return true;
             });
-
             processData(currentFilteredData);
         }
 
         function processData(data) {
-            const totalRaw = rawData.length;
             const totalFiltered = data.length;
-            
             const severeLevels = ['E', 'F', 'G', 'H', 'I'];
-            const severeCount = data.filter(row => severeLevels.includes(row['ระดับ'].toUpperCase())).length;
+            const sentinelLevels = ['G', 'H', 'I'];
             
-            const deptCounts = {};
-            data.forEach(row => {
-                const dept = row['หน่วยงานที่เกี่ยวข้อง'] || 'ไม่ระบุ';
-                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
-            });
-            const topDept = totalFiltered > 0 ? Object.keys(deptCounts).reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b, '-') : '-';
-            const topDeptCount = topDept !== '-' ? deptCounts[topDept] : 0;
+            const severeCount = data.filter(row => severeLevels.includes(row['ระดับ'].toUpperCase())).length;
+            const sentinelCount = data.filter(row => sentinelLevels.includes(row['ระดับ'].toUpperCase())).length;
 
             document.getElementById('totalIncidents').innerText = totalFiltered.toLocaleString();
-            document.getElementById('totalPercentMsg').innerText = `คิดเป็น ${((totalFiltered / totalRaw) * 100 || 0).toFixed(1)}% จากทั้งหมด`;
-
             document.getElementById('severeIncidents').innerText = severeCount.toLocaleString();
-            document.getElementById('severePercentMsg').innerText = `คิดเป็น ${((severeCount / totalFiltered) * 100 || 0).toFixed(1)}% ในช่วงเวลานี้`;
+            document.getElementById('sentinelCount').innerText = sentinelCount.toLocaleString();
 
-            document.getElementById('topDepartment').innerText = topDept;
-            document.getElementById('topDeptMsg').innerText = `จำนวน ${topDeptCount} ครั้ง (คิดเป็น ${((topDeptCount / totalFiltered) * 100 || 0).toFixed(1)}%)`;
-
-            const monthCounts = {};
-            const levelCounts = {};
-            const categoryCounts = {};
-
+            const monthCounts = {}, levelCounts = {}, categoryCounts = {};
             data.forEach(row => {
-                const monthYear = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
-                monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
-                
+                const mY = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
+                monthCounts[mY] = (monthCounts[mY] || 0) + 1;
                 const lvl = row['ระดับ'].toUpperCase() || 'N/A';
                 levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
-                
                 const cat = row['หมวดความเสี่ยง'] || 'ไม่ระบุ';
                 categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
             });
 
-            const sortedMonths = Object.keys(monthCounts).sort();
-            const trendData = sortedMonths.map(m => monthCounts[m]);
-
-            const sortedLevels = Object.keys(levelCounts).sort();
-            const levelData = sortedLevels.map(l => levelCounts[l]);
-
-            const sortedCategories = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]);
-            const topCategories = sortedCategories.slice(0, 10);
-            const categoryData = topCategories.map(c => categoryCounts[c]);
-
-            renderChart('trendChart', 'bar', sortedMonths, trendData, '#3b82f6', false, 'month', totalFiltered);
-            renderChart('levelChart', 'bar', sortedLevels, levelData, '#f59e0b', false, 'level', totalFiltered);
-            renderChart('categoryChart', 'bar', topCategories, categoryData, '#10b981', true, 'category', totalFiltered);
+            renderChart('trendChart', 'bar', Object.keys(monthCounts).sort(), Object.values(monthCounts), '#3b82f6', false, 'month', totalFiltered);
+            renderChart('levelChart', 'bar', Object.keys(levelCounts).sort(), Object.values(levelCounts), '#f59e0b', false, 'level', totalFiltered);
+            renderChart('categoryChart', 'bar', Object.keys(categoryCounts).sort((a,b) => categoryCounts[b]-categoryCounts[a]).slice(0,10), Object.values(categoryCounts).sort((a,b)=>b-a).slice(0,10), '#10b981', true, 'category', totalFiltered);
             
-            closeTable(); 
+            renderRiskRegister(data);
+            closeTable();
         }
 
-        function renderChart(canvasId, type, labels, data, color, isHorizontal, filterType, currentTotalFiltered) {
+        // --- ฟังก์ชัน Risk Register: E ขึ้นไป ล่าสุดของแต่ละหมวด และ Map มาตรฐานด้วย "รายการ" ---
+        function renderRiskRegister(data) {
+            const body = document.getElementById('riskRegisterBody');
+            body.innerHTML = '';
+            
+            const severeData = data.filter(r => ['E','F','G','H','I'].includes(r['ระดับ'].toUpperCase()));
+            const categories = [...new Set(severeData.map(r => r['หมวดความเสี่ยง']))];
+            
+            categories.forEach(cat => {
+                const rows = severeData.filter(r => r['หมวดความเสี่ยง'] === cat).sort((a,b) => b._dateObj.intBE - a._dateObj.intBE);
+                const latest = rows[0];
+                
+                // ค้นหามาตรฐานจากฟิลด์ "รายการ"
+                const itemDesc = latest['รายการ'] || '';
+                const standard = itemMapping[itemDesc] || "-";
+                
+                const dObj = latest._dateObj;
+                const displayDate = dObj ? `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}` : latest['วันที่เกิดเหตุ'];
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 border font-bold text-gray-700">${cat}</td>
+                    <td class="p-2 border text-gray-600">${itemDesc}</td>
+                    <td class="p-2 border text-blue-600 text-center font-medium">${standard}</td>
+                    <td class="p-2 border text-center whitespace-nowrap">${displayDate}</td>
+                    <td class="p-2 border text-center"><span class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold">${latest['ระดับ']}</span></td>
+                    <td class="p-2 border text-gray-500">[${latest['เลขที่ใบความเสี่ยง']}] ${latest['รายละเอียด'].substring(0,80)}...</td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function renderChart(canvasId, type, labels, data, color, isHorizontal, filterType, total) {
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (charts[canvasId]) charts[canvasId].destroy();
-
-            let customScales = {
-                x: { ticks: {} }
-            };
-
-            if (filterType === 'month' && !isHorizontal) {
-                customScales.x.ticks.callback = function(value) {
-                    let raw = this.getLabelForValue(value);
-                    if (raw) {
-                        let p = raw.split('-');
-                        if (p.length >= 2) return thaiMonthsShort[parseInt(p[1])-1] + ' ' + p[0].substring(2);
-                    }
-                    return raw;
-                };
-            }
-
-            const config = {
+            charts[canvasId] = new Chart(ctx, {
                 type: type,
                 data: {
                     labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: color + '99',
-                        borderColor: color,
-                        borderWidth: 1,
-                        borderRadius: type === 'bar' ? 4 : 0
-                    }]
+                    datasets: [{ data: data, backgroundColor: color + '99', borderColor: color, borderWidth: 1, borderRadius: 4 }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     indexAxis: isHorizontal ? 'y' : 'x',
-                    scales: customScales,
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    let item = tooltipItems[0];
-                                    if (filterType === 'month') {
-                                        let raw = labels[item.dataIndex]; 
-                                        if (raw) {
-                                            let p = raw.split('-');
-                                            if(p.length >= 2) return `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
-                                        }
-                                    }
-                                    return labels[item.dataIndex];
-                                },
-                                label: function(context) {
-                                    let val = context.raw;
-                                    let percentage = currentTotalFiltered ? ((val / currentTotalFiltered) * 100).toFixed(1) : 0;
-                                    return ` จำนวน: ${val.toLocaleString()} ครั้ง (คิดเป็น ${percentage}%)`;
-                                }
-                            }
-                        }
-                    },
-                    onClick: (event, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const clickedLabel = labels[index]; 
-                            triggerDrillDown(filterType, clickedLabel);
-                        }
-                    }
+                    scales: { x: { ticks: { callback: function(v, i) { 
+                        let r = labels[i]; if(filterType==='month' && r) { let p=r.split('-'); return thaiMonthsShort[parseInt(p[1])-1]+' '+p[0].substring(2); } return r;
+                    }}}},
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return ` ${c.raw} ครั้ง (${((c.raw/total)*100).toFixed(1)}%)`; } } } },
+                    onClick: (e, el) => { if(el.length > 0) triggerDrillDown(filterType, labels[el[0].index]); }
                 }
-            };
-            charts[canvasId] = new Chart(ctx, config);
+            });
         }
 
-        function triggerDrillDown(filterType, label) {
-            let filteredTableData = [];
-            let titleText = "";
-
-            if (filterType === 'month') {
-                filteredTableData = currentFilteredData.filter(row => {
-                    const monthYear = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
-                    return monthYear === label;
-                });
-                let p = label.split('-');
-                let niceDate = `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
-                titleText = `รายละเอียดอุบัติการณ์ ประจำเดือน: ${niceDate}`;
-            } else if (filterType === 'level') {
-                filteredTableData = currentFilteredData.filter(row => row['ระดับ'].toUpperCase() === label);
-                titleText = `รายละเอียดอุบัติการณ์ ระดับความรุนแรง: ${label}`;
-            } else if (filterType === 'category') {
-                filteredTableData = currentFilteredData.filter(row => row['หมวดความเสี่ยง'] === label);
-                titleText = `รายละเอียดอุบัติการณ์ หมวดความเสี่ยง: ${label}`;
+        function triggerDrillDown(type, label) {
+            let filtered = [];
+            if (type === 'sentinel') {
+                filtered = currentFilteredData.filter(r => ['G','H','I'].includes(r['ระดับ'].toUpperCase()));
+                label = "Sentinel Event (G, H, I)";
+            } else if (type === 'month') {
+                filtered = currentFilteredData.filter(r => `${r._dateObj.year}-${r._dateObj.month.toString().padStart(2,'0')}` === label);
+            } else if (type === 'level') {
+                filtered = currentFilteredData.filter(r => r['ระดับ'].toUpperCase() === label);
+            } else if (type === 'category') {
+                filtered = currentFilteredData.filter(r => r['หมวดความเสี่ยง'] === label);
             }
-
-            renderTable(filteredTableData, titleText);
+            renderTable(filtered, "รายละเอียด: " + label);
         }
 
         function renderTable(data, title) {
             document.getElementById('tableArea').style.display = 'block';
             document.getElementById('tableTitle').innerText = title;
-
-            if (dataTableInstance) {
-                dataTableInstance.destroy();
-            }
-
+            if (dataTableInstance) dataTableInstance.destroy();
             const tbody = document.querySelector('#drilldownTable tbody');
             tbody.innerHTML = '';
+            data.forEach(r => {
+                const dObj = r._dateObj;
+                const displayDate = dObj ? `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}` : r['วันที่เกิดเหตุ'];
 
-            data.forEach(row => {
                 const tr = document.createElement('tr');
-                tr.classList.add('hover:bg-gray-50');
-                
-                const detailStr = row['รายละเอียด'] ? row['รายละเอียด'].substring(0, 80) + '...' : '-';
-                
-                // จัดรูปแบบวันที่ในตารางให้สวยงามอ่านง่าย เช่น 07/10/2567
-                const dObj = row._dateObj;
-                const displayDate = dObj ? `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}` : row['วันที่เกิดเหตุ'];
-
                 tr.innerHTML = `
-                    <td class="p-3 border-b whitespace-nowrap">${row['เลขที่ใบความเสี่ยง'] || '-'}</td>
-                    <td class="p-3 border-b whitespace-nowrap text-center">${displayDate}</td>
-                    <td class="p-3 border-b text-center"><span class="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-bold">${row['ระดับ'] || '-'}</span></td>
-                    <td class="p-3 border-b">${row['หน่วยงานที่เกี่ยวข้อง'] || '-'}</td>
-                    <td class="p-3 border-b">${row['หมวดความเสี่ยง'] || '-'}</td>
-                    <td class="p-3 border-b text-xs text-gray-500" title="${row['รายละเอียด']}">${detailStr}</td>
+                    <td class="p-2 border">${r['เลขที่ใบความเสี่ยง']}</td>
+                    <td class="p-2 border whitespace-nowrap text-center">${displayDate}</td>
+                    <td class="p-2 border text-center font-bold text-gray-700">${r['ระดับ']}</td>
+                    <td class="p-2 border">${r['หน่วยงานที่เกี่ยวข้อง']}</td>
+                    <td class="p-2 border text-blue-600">${r['รายการ']}</td>
+                    <td class="p-2 border text-gray-500">${r['รายละเอียด'].substring(0,80)}...</td>
                 `;
                 tbody.appendChild(tr);
             });
-
             dataTableInstance = $('#drilldownTable').DataTable({
+                dom: '<"flex justify-between items-center mb-2"lBf>rtip', // จัดวาง Layout ของ DataTable ให้สวยงาม
                 pageLength: 10,
-                lengthChange: false,
-                language: {
-                    search: "🔍 ค้นหาในตาราง:",
-                    info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
-                    paginate: { first: "หน้าแรก", last: "หน้าสุดท้าย", next: "ถัดไป", previous: "ก่อนหน้า" },
-                    zeroRecords: "ไม่พบข้อมูลที่ตรงกัน"
+                lengthMenu: [[10, 20, 50, 100, -1], ["10 แถว", "20 แถว", "50 แถว", "100 แถว", "ทั้งหมด"]],
+                buttons: [
+                    { extend: 'excel', text: '📥 Export Excel', className: 'bg-green-600 text-white rounded px-3 py-1 text-xs ml-2 border-0' },
+                    { extend: 'print', text: '🖨️ Print / PDF', className: 'bg-blue-600 text-white rounded px-3 py-1 text-xs ml-2 border-0' }
+                ],
+                language: { 
+                    search: "🔍 ค้นหา:", 
+                    info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
+                    lengthMenu: "แสดง _MENU_"
                 }
             });
-
             document.getElementById('tableArea').scrollIntoView({ behavior: 'smooth' });
         }
 
-        function closeTable() {
-            document.getElementById('tableArea').style.display = 'none';
-        }
+        function closeTable() { document.getElementById('tableArea').style.display = 'none'; }
+        function resetFilters() { initDateRange(); for(let k in tomSelects) tomSelects[k].clear(true); applyFilters(); }
+        const tsConfig = { plugins: ['remove_button'], maxItems: null, placeholder: 'ทั้งหมด' };
+        const filterFields = { 'สถานะ':'filterStatus','หมวดความเสี่ยง':'filterCategory','ระดับ':'filterLevel','หน่วยงานที่เกี่ยวข้อง':'filterDept','สถานที่':'filterLocation','Phase':'filterPhase' };
     </script>
 </body>
 </html>
