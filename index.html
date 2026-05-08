@@ -87,7 +87,7 @@
                         </svg>
                         ตัวกรองข้อมูล (Slicers)
                     </h3>
-                    <button onclick="resetFilters()" class="text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1 rounded">ล้างตัวกรองทั้งหมด</button>
+                    <button onclick="resetFilters()" class="text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1 rounded transition hover:bg-blue-100">ล้างตัวกรองทั้งหมด</button>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -225,24 +225,40 @@
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
         const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
-        // ฟังก์ชันแปลงวันที่ พ.ศ. (ใน CSV) ให้เป็น ค.ศ. (สำหรับแสดงผลใน Date Picker)
+        // 1. ระบบแปลงวันที่ (ค.ศ. <=> พ.ศ.) แบบจัดการตัวเลขศูนย์นำหน้า
         function convertToCE(beDateStr) {
             if (!beDateStr) return '';
-            const parts = beDateStr.split('-');
-            if (parts.length >= 3) {
-                return `${parseInt(parts[0]) - 543}-${parts[1]}-${parts[2].substring(0,2)}`;
+            const p = beDateStr.split(' ')[0].split(/[-/]/); 
+            if (p.length >= 3) {
+                let m = p[1].padStart(2, '0');
+                let d = p[2].padStart(2, '0');
+                return `${parseInt(p[0]) - 543}-${m}-${d}`;
             }
             return beDateStr;
         }
 
-        // ฟังก์ชันแปลงวันที่ ค.ศ. (จาก Date Picker) ให้เป็น พ.ศ. (เพื่อไป Filter กับข้อมูล CSV)
         function convertToBE(ceDateStr) {
             if (!ceDateStr) return '';
-            const parts = ceDateStr.split('-');
-            if (parts.length >= 3) {
-                return `${parseInt(parts[0]) + 543}-${parts[1]}-${parts[2]}`;
+            const p = ceDateStr.split(' ')[0].split(/[-/]/);
+            if (p.length >= 3) {
+                let m = p[1].padStart(2, '0');
+                let d = p[2].padStart(2, '0');
+                return `${parseInt(p[0]) + 543}-${m}-${d}`;
             }
             return ceDateStr;
+        }
+
+        // 2. แปลงวันที่เป็น "ตัวเลขจำนวนเต็ม" (YYYYMMDD) เพื่อใช้เทียบค่าแบบ 100% ไร้บั๊ก
+        function toIntDate(dateStr) {
+            if (!dateStr) return 0;
+            const p = dateStr.split(' ')[0].split(/[-/]/);
+            if (p.length >= 3) {
+                let y = parseInt(p[0]);
+                let m = parseInt(p[1]);
+                let d = parseInt(p[2]);
+                return (y * 10000) + (m * 100) + d; // เช่น 25690331
+            }
+            return 0;
         }
 
         document.getElementById('csvFileMain').addEventListener('change', handleFileUpload);
@@ -276,8 +292,13 @@
 
         function initDateRange() {
             if(rawData.length === 0) return;
-            const dates = rawData.map(r => r['วันที่เกิดเหตุ']).filter(d => d).sort();
-            // ใส่ค่าให้ Date Picker โดยแปลง พ.ศ. เป็น ค.ศ.
+            // ดึงวันที่ทั้งหมดมาจัดรูปแบบให้เป๊ะก่อนทำการเรียงลำดับ
+            const dates = rawData.map(r => {
+                const p = r['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
+                if(p.length >= 3) return `${p[0]}-${p[1].padStart(2, '0')}-${p[2].padStart(2, '0')}`;
+                return r['วันที่เกิดเหตุ'];
+            }).filter(d => d).sort();
+            
             document.getElementById('startDate').value = convertToCE(dates[0]);
             document.getElementById('endDate').value = convertToCE(dates[dates.length - 1]);
         }
@@ -306,13 +327,12 @@
         }
 
         function applyFilters() {
-            // ดึงค่า ค.ศ. จาก Date Picker แล้วแปลงเป็น พ.ศ. ทันที
             const startCE = document.getElementById('startDate').value;
             const endCE = document.getElementById('endDate').value;
             
-            // กรณีลบวันที่ออกจนว่าง จะให้ค่าเป็นกว้างสุดไปเลย
-            const startBE = startCE ? convertToBE(startCE) : "0000-00-00";
-            const endBE = endCE ? convertToBE(endCE) + " 23:59:59" : "9999-12-31 23:59:59";
+            // แปลง Date Picker (ค.ศ.) -> เป็น พ.ศ. -> แล้วแปลงเป็นตัวเลขเพื่อเปรียบเทียบ
+            const startInt = startCE ? toIntDate(convertToBE(startCE)) : 0;
+            const endInt = endCE ? toIntDate(convertToBE(endCE)) : 99999999;
             
             const selectedFilters = {};
             for (const [colName, elementId] of Object.entries(filterFields)) {
@@ -323,10 +343,12 @@
             }
 
             currentFilteredData = rawData.filter(row => {
-                const rowDate = row['วันที่เกิดเหตุ'];
-                // เทียบด้วย String พ.ศ. ที่แปลงมาแล้ว
-                if (rowDate < startBE || rowDate > endBE) return false;
+                const rowInt = toIntDate(row['วันที่เกิดเหตุ']);
                 
+                // เช็คช่วงวันที่ด้วยตัวเลขรับรองความแม่นยำ
+                if (rowInt < startInt || rowInt > endInt) return false;
+                
+                // เช็ค Slicer
                 for (const colName in selectedFilters) {
                     const rowValue = row[colName] || 'ไม่ระบุ';
                     if (!selectedFilters[colName].includes(rowValue)) return false;
@@ -366,9 +388,10 @@
             const categoryCounts = {};
 
             data.forEach(row => {
-                const dateParts = row['วันที่เกิดเหตุ'].split('-');
+                // บังคับแปลงเดือนให้มี 2 หลัก (zero padding) ก่อนโยนเข้ากราฟ
+                const dateParts = row['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
                 if (dateParts.length >= 2) {
-                    const monthYear = `${dateParts[0]}-${dateParts[1]}`;
+                    const monthYear = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}`;
                     monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
                 }
                 
@@ -419,9 +442,9 @@
                     scales: {
                         x: {
                             ticks: {
-                                // แก้ไขปัญหา undefined โดยการดึง Label ผ่าน API ของ Chart.js ตรงๆ
-                                callback: function(value, index, ticks) {
-                                    let raw = this.getLabelForValue(value);
+                                // 3. แก้บั๊ก Undefined: ดึง Label ตรงๆ จากอาร์เรย์ตาม index แทน
+                                callback: function(value, index) {
+                                    let raw = labels[index];
                                     if (filterType === 'month' && !isHorizontal && raw) {
                                         let p = raw.split('-');
                                         if (p.length >= 2) return thaiMonthsShort[parseInt(p[1])-1] + ' ' + p[0].substring(2);
@@ -435,14 +458,17 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
+                                // ดึงชื่อเดือนเต็มลงใน Tooltip ได้อย่างปลอดภัย
                                 title: function(tooltipItems) {
                                     let item = tooltipItems[0];
                                     if (filterType === 'month') {
-                                        let raw = item.label; // ดึง Label จริงๆ ออกมา
-                                        let p = raw.split('-');
-                                        if(p.length >= 2) return `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
+                                        let raw = labels[item.dataIndex]; 
+                                        if (raw) {
+                                            let p = raw.split('-');
+                                            if(p.length >= 2) return `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
+                                        }
                                     }
-                                    return item.label;
+                                    return labels[item.dataIndex];
                                 },
                                 label: function(context) {
                                     let val = context.raw;
@@ -469,7 +495,14 @@
             let titleText = "";
 
             if (filterType === 'month') {
-                filteredTableData = currentFilteredData.filter(row => row['วันที่เกิดเหตุ'].startsWith(label));
+                filteredTableData = currentFilteredData.filter(row => {
+                    const dateParts = row['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
+                    if (dateParts.length >= 2) {
+                        const monthYear = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}`;
+                        return monthYear === label;
+                    }
+                    return false;
+                });
                 let p = label.split('-');
                 let niceDate = `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
                 titleText = `รายละเอียดอุบัติการณ์ ประจำเดือน: ${niceDate}`;
