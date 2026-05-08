@@ -3,31 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Risk Management Interactive Dashboard</title>
+    <title>JVL-RM God Report Add-on Tools</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap');
-        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; display: flex; flex-direction: column; min-height: 100vh; }
         .chart-container { position: relative; height: 300px; width: 100%; cursor: pointer; }
-        /* ปรับแต่ง DataTables ให้เข้ากับ Tailwind */
         .dataTables_wrapper { padding-top: 1rem; font-size: 0.875rem; }
-        .dataTables_wrapper .dataTables_filter input { border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem; }
+        .dataTables_wrapper .dataTables_filter input { border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem; outline: none; }
         table.dataTable.no-footer { border-bottom: 1px solid #e5e7eb; }
+        main { flex: 1; }
+        /* ปรับแต่ง Tom Select ให้เข้ากับ Tailwind */
+        .ts-control { border-radius: 0.5rem; border-color: #e5e7eb; padding: 0.5rem; font-size: 0.875rem; }
+        .ts-wrapper.multi .ts-control > div { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 0.25rem; }
     </style>
 </head>
-<body class="p-6">
+<body class="p-6 flex flex-col">
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <main class="max-w-7xl mx-auto space-y-4 w-full">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">📊 Risk Incident Dashboard</h1>
-                <p class="text-gray-500 text-sm">อัปโหลดไฟล์ Export > ดูสรุป > คลิกกราฟเพื่อดูรายละเอียด</p>
+                <h1 class="text-2xl font-bold text-gray-800">📊 JVL-RM God Report Add-on Tools</h1>
+                <p class="text-gray-500 text-sm">เครื่องมือวิเคราะห์อุบัติการณ์ความเสี่ยง (Interactive Dashboard)</p>
             </div>
             <div class="flex items-center gap-3">
                 <label class="block">
@@ -43,41 +48,82 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="summaryCards" style="display: none;">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="text-gray-500 text-sm font-medium">อุบัติการณ์ทั้งหมด</h3>
-                <p class="text-3xl font-bold text-blue-600 mt-2" id="totalIncidents">0</p>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" id="filterArea" style="display: none;">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                    </svg>
+                    ตัวกรองข้อมูล (Slicers)
+                </h3>
+                <button onclick="resetFilters()" class="text-sm text-blue-600 hover:text-blue-800 font-medium">ล้างตัวกรองทั้งหมด</button>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="text-gray-500 text-sm font-medium">ระดับความรุนแรงสูงสุด (E-I)</h3>
-                <p class="text-3xl font-bold text-red-600 mt-2" id="severeIncidents">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="text-gray-500 text-sm font-medium">หน่วยงานที่รายงานสูงสุด</h3>
-                <p class="text-xl font-bold text-green-600 mt-2 truncate" id="topDepartment">-</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="lg:col-span-2 grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">ตั้งแต่วันที่ (เกิดเหตุ)</label>
+                        <input type="date" id="startDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500" onchange="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">ถึงวันที่ (เกิดเหตุ)</label>
+                        <input type="date" id="endDate" class="w-full border border-gray-200 rounded-lg p-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500" onchange="applyFilters()">
+                    </div>
+                </div>
+                
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">ระดับความรุนแรง</label><select id="filterLevel" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานะ</label><select id="filterStatus" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">Phase</label><select id="filterPhase" multiple placeholder="เลือกทั้งหมด"></select></div>
+                
+                <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หมวดความเสี่ยง</label><select id="filterCategory" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">หน่วยงานที่เกี่ยวข้อง</label><select id="filterDept" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">สถานที่</label><select id="filterLocation" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div class="lg:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">รายการ</label><select id="filterItem" multiple placeholder="เลือกทั้งหมด"></select></div>
+                <div class="lg:col-span-3"><label class="block text-xs font-medium text-gray-500 mb-1">NRLS</label><select id="filterNRLS" multiple placeholder="เลือกทั้งหมด"></select></div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dashboardArea" style="display: none;">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
-                <h3 class="font-bold text-gray-700 mb-2">แนวโน้มอุบัติการณ์ (รายเดือน)</h3>
-                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่จุดบนกราฟเพื่อดูรายละเอียดของเดือนนั้น</p>
-                <div class="chart-container">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="summaryCards" style="display: none;">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500 relative overflow-hidden">
+                <h3 class="text-gray-500 text-sm font-medium">จำนวนอุบัติการณ์ตามช่วงเวลาที่กรอง</h3>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-4xl font-bold text-gray-800" id="totalIncidents">0</p>
+                    <p class="text-sm font-medium text-gray-400">ครั้ง</p>
+                </div>
+                <p class="text-xs text-blue-500 mt-1 font-medium" id="totalPercentMsg"></p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-red-100 border-l-4 border-l-red-500 relative overflow-hidden">
+                <h3 class="text-gray-500 text-sm font-medium">ระดับความรุนแรงสูงสุด (E-I)</h3>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-4xl font-bold text-gray-800" id="severeIncidents">0</p>
+                    <p class="text-sm font-medium text-gray-400">ครั้ง</p>
+                </div>
+                <p class="text-xs text-red-500 mt-1 font-medium" id="severePercentMsg"></p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-green-100 border-l-4 border-l-green-500 relative overflow-hidden">
+                <h3 class="text-gray-500 text-sm font-medium">หน่วยงานที่รายงานสูงสุด (ในที่กรองมา)</h3>
+                <p class="text-xl font-bold text-gray-800 mt-2 truncate" id="topDepartment">-</p>
+                <p class="text-xs text-green-600 mt-1 font-medium" id="topDeptMsg"></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="dashboardArea" style="display: none;">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-1 text-sm">แนวโน้มอุบัติการณ์ (รายเดือน)</h3>
+                <div class="chart-container" style="height: 250px;">
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
-                <h3 class="font-bold text-gray-700 mb-2">สัดส่วนตามระดับความรุนแรง</h3>
-                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่แท่งกราฟเพื่อดูรายละเอียดของระดับนั้น</p>
-                <div class="chart-container">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-1 text-sm">สัดส่วนตามระดับความรุนแรง</h3>
+                <div class="chart-container" style="height: 250px;">
                     <canvas id="levelChart"></canvas>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-2 hover:shadow-md transition">
-                <h3 class="font-bold text-gray-700 mb-2">อุบัติการณ์แบ่งตามหมวดความเสี่ยง</h3>
-                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่แท่งกราฟเพื่อดูรายละเอียดของหมวดความเสี่ยงนั้น</p>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 md:col-span-2 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-1 text-sm">อุบัติการณ์แบ่งตามหมวดความเสี่ยง (Top 10)</h3>
                 <div class="chart-container" style="height: 350px;">
                     <canvas id="categoryChart"></canvas>
                 </div>
@@ -103,17 +149,47 @@
                             <th class="p-3 border-b">รายละเอียด</th>
                         </tr>
                     </thead>
-                    <tbody class="text-sm text-gray-700">
-                        </tbody>
+                    <tbody class="text-sm text-gray-700"></tbody>
                 </table>
             </div>
         </div>
-    </div>
+    </main>
+
+    <footer class="mt-10 mb-4 text-center text-gray-500 text-sm">
+        <p class="font-medium">พัฒนาโดย ภก.พิชญ์พงศ์ คงนาวัง</p>
+        <p>โรงพยาบาลจิตเวชเลยราชนครินทร์</p>
+        <p>พฤษภาคม 2569</p>
+    </footer>
 
     <script>
         let charts = {};
-        let globalData = []; // เก็บข้อมูล CSV ทั้งหมดไว้บนหน่วยความจำ
-        let dataTableInstance = null; // เก็บ Instance ของตาราง
+        let rawData = []; // เก็บข้อมูลต้นฉบับทั้งหมดจาก CSV
+        let currentFilteredData = []; // เก็บข้อมูลที่ผ่านการกรองแล้ว
+        let dataTableInstance = null; 
+        let tomSelects = {}; // เก็บ instance ของ Tom Select
+
+        // Configuration สำหรับ TomSelect
+        const tsConfig = {
+            plugins: ['remove_button'],
+            maxItems: null,
+            valueField: 'id',
+            labelField: 'title',
+            searchField: 'title',
+            placeholder: 'เลือกทั้งหมด (ไม่กรอง)',
+            onChange: function() { applyFilters(); }
+        };
+
+        // ผูกฟิลด์กับ ID ของ Select
+        const filterFields = {
+            'สถานะ': 'filterStatus',
+            'หมวดความเสี่ยง': 'filterCategory',
+            'สถานที่': 'filterLocation',
+            'ระดับ': 'filterLevel',
+            'หน่วยงานที่เกี่ยวข้อง': 'filterDept',
+            'NRLS': 'filterNRLS',
+            'รายการ': 'filterItem',
+            'Phase': 'filterPhase'
+        };
 
         document.getElementById('csvFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -123,15 +199,95 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    // เก็บข้อมูลไว้ใช้งานตอน Drill-down
-                    globalData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']);
-                    processData(globalData);
+                    // กรองเอาเฉพาะ Row ที่มีวันที่และระดับ
+                    rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']);
+                    currentFilteredData = [...rawData];
+                    
+                    initDateRange();
+                    initSlicers();
+                    
+                    document.getElementById('filterArea').style.display = 'block';
+                    processData(currentFilteredData);
                 }
             });
         });
 
+        function initDateRange() {
+            if(rawData.length === 0) return;
+            // หาวันที่น้อยสุดและมากสุดอัตโนมัติ
+            const dates = rawData.map(r => r['วันที่เกิดเหตุ']).sort();
+            document.getElementById('startDate').value = dates[0];
+            document.getElementById('endDate').value = dates[dates.length - 1];
+        }
+
+        function initSlicers() {
+            // ดึงค่าไม่ซ้ำ (Unique) ของแต่ละคอลัมน์
+            for (const [colName, elementId] of Object.entries(filterFields)) {
+                let uniqueValues = [...new Set(rawData.map(item => item[colName] || 'ไม่ระบุ'))].filter(v => v !== 'ไม่ระบุ').sort();
+                
+                // เตรียม options สำหรับ TomSelect
+                let options = uniqueValues.map(v => ({id: v, title: v}));
+                
+                // ถ้ายกเลิก/สร้างใหม่ (กรณีอัปโหลดไฟล์ซ้ำ)
+                if(tomSelects[elementId]) {
+                    tomSelects[elementId].destroy();
+                }
+                
+                let selectEl = document.getElementById(elementId);
+                selectEl.innerHTML = ''; // Clear old options
+                
+                tomSelects[elementId] = new TomSelect(`#${elementId}`, {
+                    ...tsConfig,
+                    options: options
+                });
+            }
+        }
+
+        function resetFilters() {
+            initDateRange();
+            for (const key in tomSelects) {
+                tomSelects[key].clear(true); // true = silent, don't trigger onChange yet
+            }
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            // ดึงค่าที่เลือกไว้จาก Tom Select แต่ละตัว
+            const selectedFilters = {};
+            for (const [colName, elementId] of Object.entries(filterFields)) {
+                const selectedVals = tomSelects[elementId].getValue();
+                // ถ้าเลือกหลายตัวจะได้ Array ถ้าไม่เลือกเลยจะได้ Array ว่าง
+                if (selectedVals && selectedVals.length > 0) {
+                    selectedFilters[colName] = Array.isArray(selectedVals) ? selectedVals : [selectedVals];
+                }
+            }
+
+            // เริ่มกระบวนการกรอง (Filter)
+            currentFilteredData = rawData.filter(row => {
+                // กรองวันที่
+                if (row['วันที่เกิดเหตุ'] < startDate || row['วันที่เกิดเหตุ'] > endDate) return false;
+                
+                // กรอง Slicers (ถ้ามีค่าที่เลือกไว้ในหมวดนั้นๆ)
+                for (const colName in selectedFilters) {
+                    const rowValue = row[colName] || 'ไม่ระบุ';
+                    if (!selectedFilters[colName].includes(rowValue)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            processData(currentFilteredData);
+        }
+
         function processData(data) {
-            const total = data.length;
+            const totalRaw = rawData.length;
+            const totalFiltered = data.length;
+            
+            // สรุปข้อมูล Cards และหาเปอร์เซ็นต์เทียบกับยอดทั้งหมด (Raw Data)
             const severeLevels = ['E', 'F', 'G', 'H', 'I'];
             const severeCount = data.filter(row => severeLevels.includes(row['ระดับ'].toUpperCase())).length;
             
@@ -140,36 +296,44 @@
                 const dept = row['หน่วยงานที่เกี่ยวข้อง'] || 'ไม่ระบุ';
                 deptCounts[dept] = (deptCounts[dept] || 0) + 1;
             });
-            const topDept = total > 0 ? Object.keys(deptCounts).reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b, '-') : '-';
+            const topDept = totalFiltered > 0 ? Object.keys(deptCounts).reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b, '-') : '-';
+            const topDeptCount = topDept !== '-' ? deptCounts[topDept] : 0;
 
-            document.getElementById('totalIncidents').innerText = total;
-            document.getElementById('severeIncidents').innerText = severeCount;
+            document.getElementById('totalIncidents').innerText = totalFiltered.toLocaleString();
+            document.getElementById('totalPercentMsg').innerText = `คิดเป็น ${((totalFiltered / totalRaw) * 100 || 0).toFixed(1)}% ของอุบัติการณ์ทั้งหมดที่นำเข้า`;
+
+            document.getElementById('severeIncidents').innerText = severeCount.toLocaleString();
+            document.getElementById('severePercentMsg').innerText = `คิดเป็น ${((severeCount / totalFiltered) * 100 || 0).toFixed(1)}% ของช่วงเวลาที่กรอง`;
+
             document.getElementById('topDepartment').innerText = topDept;
+            document.getElementById('topDeptMsg').innerText = `จำนวน ${topDeptCount} ครั้ง (คิดเป็น ${((topDeptCount / totalFiltered) * 100 || 0).toFixed(1)}%)`;
 
+            // เตรียมข้อมูลกราฟ
             const monthCounts = {};
+            const levelCounts = {};
+            const categoryCounts = {};
+
             data.forEach(row => {
+                // แนวโน้มรายเดือน
                 const dateParts = row['วันที่เกิดเหตุ'].split('-');
                 if (dateParts.length >= 2) {
                     const monthYear = `${dateParts[0]}-${dateParts[1]}`;
                     monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
                 }
-            });
-            const sortedMonths = Object.keys(monthCounts).sort();
-            const trendData = sortedMonths.map(m => monthCounts[m]);
-
-            const levelCounts = {};
-            data.forEach(row => {
+                // ระดับ
                 const lvl = row['ระดับ'].toUpperCase() || 'N/A';
                 levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
-            });
-            const sortedLevels = Object.keys(levelCounts).sort();
-            const levelData = sortedLevels.map(l => levelCounts[l]);
-
-            const categoryCounts = {};
-            data.forEach(row => {
+                // หมวด
                 const cat = row['หมวดความเสี่ยง'] || 'ไม่ระบุ';
                 categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
             });
+
+            const sortedMonths = Object.keys(monthCounts).sort();
+            const trendData = sortedMonths.map(m => monthCounts[m]);
+
+            const sortedLevels = Object.keys(levelCounts).sort();
+            const levelData = sortedLevels.map(l => levelCounts[l]);
+
             const sortedCategories = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]);
             const topCategories = sortedCategories.slice(0, 10);
             const categoryData = topCategories.map(c => categoryCounts[c]);
@@ -177,15 +341,15 @@
             document.getElementById('summaryCards').style.display = 'grid';
             document.getElementById('dashboardArea').style.display = 'grid';
 
-            // ส่ง Parameter เพิ่มเติมเพื่อระบุประเภทข้อมูลสำหรับ Drill-down
-            renderChart('trendChart', 'line', sortedMonths, trendData, 'จำนวนอุบัติการณ์', '#3b82f6', false, 'month');
-            renderChart('levelChart', 'bar', sortedLevels, levelData, 'จำนวน', '#f59e0b', false, 'level');
-            renderChart('categoryChart', 'bar', topCategories, categoryData, 'จำนวน', '#10b981', true, 'category');
+            // ส่ง totalFiltered เข้าไปเพื่อคำนวณ % ใน Tooltip
+            renderChart('trendChart', 'line', sortedMonths, trendData, '#3b82f6', false, 'month', totalFiltered);
+            renderChart('levelChart', 'bar', sortedLevels, levelData, '#f59e0b', false, 'level', totalFiltered);
+            renderChart('categoryChart', 'bar', topCategories, categoryData, '#10b981', true, 'category', totalFiltered);
             
-            closeTable(); // ปิดตารางเก่า(ถ้ามี) เมื่อโหลดไฟล์ใหม่
+            closeTable(); 
         }
 
-        function renderChart(canvasId, type, labels, data, labelTitle, color, isHorizontal, filterType) {
+        function renderChart(canvasId, type, labels, data, color, isHorizontal, filterType, currentTotalFiltered) {
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (charts[canvasId]) charts[canvasId].destroy();
 
@@ -194,21 +358,32 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: labelTitle,
                         data: data,
-                        backgroundColor: color + '80',
+                        backgroundColor: color + '99', // Transparency
                         borderColor: color,
-                        borderWidth: 2,
+                        borderWidth: 1,
                         tension: 0.3,
-                        fill: type === 'line'
+                        fill: type === 'line',
+                        borderRadius: type === 'bar' ? 4 : 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     indexAxis: isHorizontal ? 'y' : 'x',
-                    plugins: { legend: { display: false } },
-                    // 🚀 เพิ่ม Event onClick สำหรับทำ Drill-down
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    // คำนวณเปอร์เซ็นต์เมื่อเทียบกับข้อมูลที่กรองมาทั้งหมด
+                                    let percentage = ((val / currentTotalFiltered) * 100).toFixed(1);
+                                    return ` จำนวน: ${val.toLocaleString()} ครั้ง (คิดเป็น ${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
@@ -221,31 +396,29 @@
             charts[canvasId] = new Chart(ctx, config);
         }
 
-        // ฟังก์ชันจัดการ Drill-down (กรองข้อมูลจาก Label ที่คลิก)
         function triggerDrillDown(filterType, label) {
-            let filteredData = [];
+            let filteredTableData = [];
             let titleText = "";
 
+            // ใช้ข้อมูลจากชุด "ที่ถูกกรองจาก Slicer/วันที่แล้ว" (currentFilteredData) มา Drill-down ต่อ
             if (filterType === 'month') {
-                filteredData = globalData.filter(row => row['วันที่เกิดเหตุ'].startsWith(label));
+                filteredTableData = currentFilteredData.filter(row => row['วันที่เกิดเหตุ'].startsWith(label));
                 titleText = `รายละเอียดอุบัติการณ์ ประจำเดือน: ${label}`;
             } else if (filterType === 'level') {
-                filteredData = globalData.filter(row => row['ระดับ'].toUpperCase() === label);
+                filteredTableData = currentFilteredData.filter(row => row['ระดับ'].toUpperCase() === label);
                 titleText = `รายละเอียดอุบัติการณ์ ระดับความรุนแรง: ${label}`;
             } else if (filterType === 'category') {
-                filteredData = globalData.filter(row => row['หมวดความเสี่ยง'] === label);
+                filteredTableData = currentFilteredData.filter(row => row['หมวดความเสี่ยง'] === label);
                 titleText = `รายละเอียดอุบัติการณ์ หมวดความเสี่ยง: ${label}`;
             }
 
-            renderTable(filteredData, titleText);
+            renderTable(filteredTableData, titleText);
         }
 
-        // ฟังก์ชันวาดตารางและเรียกใช้ DataTables
         function renderTable(data, title) {
             document.getElementById('tableArea').style.display = 'block';
             document.getElementById('tableTitle').innerText = title;
 
-            // ทำลาย DataTable instance เก่าก่อนวาดใหม่
             if (dataTableInstance) {
                 dataTableInstance.destroy();
             }
@@ -257,13 +430,12 @@
                 const tr = document.createElement('tr');
                 tr.classList.add('hover:bg-gray-50');
                 
-                // ตัดคำรายละเอียดให้ไม่ยาวเกินไป
                 const detailStr = row['รายละเอียด'] ? row['รายละเอียด'].substring(0, 80) + '...' : '-';
 
                 tr.innerHTML = `
                     <td class="p-3 border-b whitespace-nowrap">${row['เลขที่ใบความเสี่ยง'] || '-'}</td>
                     <td class="p-3 border-b whitespace-nowrap">${row['วันที่เกิดเหตุ'] || '-'}</td>
-                    <td class="p-3 border-b text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold">${row['ระดับ'] || '-'}</span></td>
+                    <td class="p-3 border-b text-center"><span class="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-bold">${row['ระดับ'] || '-'}</span></td>
                     <td class="p-3 border-b">${row['หน่วยงานที่เกี่ยวข้อง'] || '-'}</td>
                     <td class="p-3 border-b">${row['หมวดความเสี่ยง'] || '-'}</td>
                     <td class="p-3 border-b text-xs text-gray-500" title="${row['รายละเอียด']}">${detailStr}</td>
@@ -271,24 +443,17 @@
                 tbody.appendChild(tr);
             });
 
-            // เริ่มต้นใช้งาน DataTables
             dataTableInstance = $('#drilldownTable').DataTable({
                 pageLength: 10,
                 lengthChange: false,
                 language: {
-                    search: "🔍 ค้นหา:",
+                    search: "🔍 ค้นหาในตาราง:",
                     info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
-                    paginate: {
-                        first: "หน้าแรก",
-                        last: "หน้าสุดท้าย",
-                        next: "ถัดไป",
-                        previous: "ก่อนหน้า"
-                    },
+                    paginate: { first: "หน้าแรก", last: "หน้าสุดท้าย", next: "ถัดไป", previous: "ก่อนหน้า" },
                     zeroRecords: "ไม่พบข้อมูลที่ตรงกัน"
                 }
             });
 
-            // เลื่อนหน้าจอลงมาที่ตารางโดยอัตโนมัติ
             document.getElementById('tableArea').scrollIntoView({ behavior: 'smooth' });
         }
 
