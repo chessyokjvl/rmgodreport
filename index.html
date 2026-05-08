@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management Interactive Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap');
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .chart-container { position: relative; height: 300px; width: 100%; cursor: pointer; }
+        /* ปรับแต่ง DataTables ให้เข้ากับ Tailwind */
+        .dataTables_wrapper { padding-top: 1rem; font-size: 0.875rem; }
+        .dataTables_wrapper .dataTables_filter input { border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem; }
+        table.dataTable.no-footer { border-bottom: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">📊 Risk Incident Dashboard</h1>
+                <p class="text-gray-500 text-sm">อัปโหลดไฟล์ Export > ดูสรุป > คลิกกราฟเพื่อดูรายละเอียด</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="block">
+                    <span class="sr-only">เลือกไฟล์ CSV</span>
+                    <input type="file" id="csvFile" accept=".csv" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100 cursor-pointer"
+                    />
+                </label>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="summaryCards" style="display: none;">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-gray-500 text-sm font-medium">อุบัติการณ์ทั้งหมด</h3>
+                <p class="text-3xl font-bold text-blue-600 mt-2" id="totalIncidents">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-gray-500 text-sm font-medium">ระดับความรุนแรงสูงสุด (E-I)</h3>
+                <p class="text-3xl font-bold text-red-600 mt-2" id="severeIncidents">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-gray-500 text-sm font-medium">หน่วยงานที่รายงานสูงสุด</h3>
+                <p class="text-xl font-bold text-green-600 mt-2 truncate" id="topDepartment">-</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dashboardArea" style="display: none;">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-2">แนวโน้มอุบัติการณ์ (รายเดือน)</h3>
+                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่จุดบนกราฟเพื่อดูรายละเอียดของเดือนนั้น</p>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-2">สัดส่วนตามระดับความรุนแรง</h3>
+                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่แท่งกราฟเพื่อดูรายละเอียดของระดับนั้น</p>
+                <div class="chart-container">
+                    <canvas id="levelChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-2 hover:shadow-md transition">
+                <h3 class="font-bold text-gray-700 mb-2">อุบัติการณ์แบ่งตามหมวดความเสี่ยง</h3>
+                <p class="text-xs text-gray-400 mb-4">👆 คลิกที่แท่งกราฟเพื่อดูรายละเอียดของหมวดความเสี่ยงนั้น</p>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" id="tableArea" style="display: none;">
+            <div class="flex justify-between items-center mb-4 border-b pb-4">
+                <h3 class="font-bold text-gray-700 text-lg" id="tableTitle">รายละเอียดข้อมูล</h3>
+                <button onclick="closeTable()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
+                    ✕ ปิดตาราง
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="drilldownTable" class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm">
+                            <th class="p-3 border-b">เลขที่ใบความเสี่ยง</th>
+                            <th class="p-3 border-b">วันที่เกิดเหตุ</th>
+                            <th class="p-3 border-b">ระดับ</th>
+                            <th class="p-3 border-b">หน่วยงานที่เกี่ยวข้อง</th>
+                            <th class="p-3 border-b">หมวดความเสี่ยง</th>
+                            <th class="p-3 border-b">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm text-gray-700">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+        let globalData = []; // เก็บข้อมูล CSV ทั้งหมดไว้บนหน่วยความจำ
+        let dataTableInstance = null; // เก็บ Instance ของตาราง
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // เก็บข้อมูลไว้ใช้งานตอน Drill-down
+                    globalData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']);
+                    processData(globalData);
+                }
+            });
+        });
+
+        function processData(data) {
+            const total = data.length;
+            const severeLevels = ['E', 'F', 'G', 'H', 'I'];
+            const severeCount = data.filter(row => severeLevels.includes(row['ระดับ'].toUpperCase())).length;
+            
+            const deptCounts = {};
+            data.forEach(row => {
+                const dept = row['หน่วยงานที่เกี่ยวข้อง'] || 'ไม่ระบุ';
+                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+            });
+            const topDept = total > 0 ? Object.keys(deptCounts).reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b, '-') : '-';
+
+            document.getElementById('totalIncidents').innerText = total;
+            document.getElementById('severeIncidents').innerText = severeCount;
+            document.getElementById('topDepartment').innerText = topDept;
+
+            const monthCounts = {};
+            data.forEach(row => {
+                const dateParts = row['วันที่เกิดเหตุ'].split('-');
+                if (dateParts.length >= 2) {
+                    const monthYear = `${dateParts[0]}-${dateParts[1]}`;
+                    monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
+                }
+            });
+            const sortedMonths = Object.keys(monthCounts).sort();
+            const trendData = sortedMonths.map(m => monthCounts[m]);
+
+            const levelCounts = {};
+            data.forEach(row => {
+                const lvl = row['ระดับ'].toUpperCase() || 'N/A';
+                levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
+            });
+            const sortedLevels = Object.keys(levelCounts).sort();
+            const levelData = sortedLevels.map(l => levelCounts[l]);
+
+            const categoryCounts = {};
+            data.forEach(row => {
+                const cat = row['หมวดความเสี่ยง'] || 'ไม่ระบุ';
+                categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+            });
+            const sortedCategories = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]);
+            const topCategories = sortedCategories.slice(0, 10);
+            const categoryData = topCategories.map(c => categoryCounts[c]);
+
+            document.getElementById('summaryCards').style.display = 'grid';
+            document.getElementById('dashboardArea').style.display = 'grid';
+
+            // ส่ง Parameter เพิ่มเติมเพื่อระบุประเภทข้อมูลสำหรับ Drill-down
+            renderChart('trendChart', 'line', sortedMonths, trendData, 'จำนวนอุบัติการณ์', '#3b82f6', false, 'month');
+            renderChart('levelChart', 'bar', sortedLevels, levelData, 'จำนวน', '#f59e0b', false, 'level');
+            renderChart('categoryChart', 'bar', topCategories, categoryData, 'จำนวน', '#10b981', true, 'category');
+            
+            closeTable(); // ปิดตารางเก่า(ถ้ามี) เมื่อโหลดไฟล์ใหม่
+        }
+
+        function renderChart(canvasId, type, labels, data, labelTitle, color, isHorizontal, filterType) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (charts[canvasId]) charts[canvasId].destroy();
+
+            const config = {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: labelTitle,
+                        data: data,
+                        backgroundColor: color + '80',
+                        borderColor: color,
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: type === 'line'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: isHorizontal ? 'y' : 'x',
+                    plugins: { legend: { display: false } },
+                    // 🚀 เพิ่ม Event onClick สำหรับทำ Drill-down
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedLabel = labels[index];
+                            triggerDrillDown(filterType, clickedLabel);
+                        }
+                    }
+                }
+            };
+            charts[canvasId] = new Chart(ctx, config);
+        }
+
+        // ฟังก์ชันจัดการ Drill-down (กรองข้อมูลจาก Label ที่คลิก)
+        function triggerDrillDown(filterType, label) {
+            let filteredData = [];
+            let titleText = "";
+
+            if (filterType === 'month') {
+                filteredData = globalData.filter(row => row['วันที่เกิดเหตุ'].startsWith(label));
+                titleText = `รายละเอียดอุบัติการณ์ ประจำเดือน: ${label}`;
+            } else if (filterType === 'level') {
+                filteredData = globalData.filter(row => row['ระดับ'].toUpperCase() === label);
+                titleText = `รายละเอียดอุบัติการณ์ ระดับความรุนแรง: ${label}`;
+            } else if (filterType === 'category') {
+                filteredData = globalData.filter(row => row['หมวดความเสี่ยง'] === label);
+                titleText = `รายละเอียดอุบัติการณ์ หมวดความเสี่ยง: ${label}`;
+            }
+
+            renderTable(filteredData, titleText);
+        }
+
+        // ฟังก์ชันวาดตารางและเรียกใช้ DataTables
+        function renderTable(data, title) {
+            document.getElementById('tableArea').style.display = 'block';
+            document.getElementById('tableTitle').innerText = title;
+
+            // ทำลาย DataTable instance เก่าก่อนวาดใหม่
+            if (dataTableInstance) {
+                dataTableInstance.destroy();
+            }
+
+            const tbody = document.querySelector('#drilldownTable tbody');
+            tbody.innerHTML = '';
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.classList.add('hover:bg-gray-50');
+                
+                // ตัดคำรายละเอียดให้ไม่ยาวเกินไป
+                const detailStr = row['รายละเอียด'] ? row['รายละเอียด'].substring(0, 80) + '...' : '-';
+
+                tr.innerHTML = `
+                    <td class="p-3 border-b whitespace-nowrap">${row['เลขที่ใบความเสี่ยง'] || '-'}</td>
+                    <td class="p-3 border-b whitespace-nowrap">${row['วันที่เกิดเหตุ'] || '-'}</td>
+                    <td class="p-3 border-b text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold">${row['ระดับ'] || '-'}</span></td>
+                    <td class="p-3 border-b">${row['หน่วยงานที่เกี่ยวข้อง'] || '-'}</td>
+                    <td class="p-3 border-b">${row['หมวดความเสี่ยง'] || '-'}</td>
+                    <td class="p-3 border-b text-xs text-gray-500" title="${row['รายละเอียด']}">${detailStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // เริ่มต้นใช้งาน DataTables
+            dataTableInstance = $('#drilldownTable').DataTable({
+                pageLength: 10,
+                lengthChange: false,
+                language: {
+                    search: "🔍 ค้นหา:",
+                    info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
+                    paginate: {
+                        first: "หน้าแรก",
+                        last: "หน้าสุดท้าย",
+                        next: "ถัดไป",
+                        previous: "ก่อนหน้า"
+                    },
+                    zeroRecords: "ไม่พบข้อมูลที่ตรงกัน"
+                }
+            });
+
+            // เลื่อนหน้าจอลงมาที่ตารางโดยอัตโนมัติ
+            document.getElementById('tableArea').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeTable() {
+            document.getElementById('tableArea').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
