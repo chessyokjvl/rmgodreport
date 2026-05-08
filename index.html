@@ -66,15 +66,10 @@
                     <p class="text-gray-500 text-sm">เครื่องมือวิเคราะห์อุบัติการณ์ความเสี่ยง (Interactive Dashboard)</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <label class="block">
-                        <span class="sr-only">เปลี่ยนไฟล์ CSV</span>
-                        <input type="file" id="csvFileHeader" accept=".csv" class="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-full file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100 cursor-pointer"
-                        />
+                    <label class="cursor-pointer bg-blue-50 text-blue-700 hover:bg-blue-100 px-5 py-2.5 rounded-xl text-sm font-semibold transition border border-blue-200 shadow-sm flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span id="headerFileName">เปลี่ยนไฟล์ CSV</span>
+                        <input type="file" id="csvFileHeader" accept=".csv" class="hidden" />
                     </label>
                 </div>
             </div>
@@ -225,40 +220,36 @@
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
         const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
-        // 1. ระบบแปลงวันที่ (ค.ศ. <=> พ.ศ.) แบบจัดการตัวเลขศูนย์นำหน้า
-        function convertToCE(beDateStr) {
-            if (!beDateStr) return '';
-            const p = beDateStr.split(' ')[0].split(/[-/]/); 
-            if (p.length >= 3) {
-                let m = p[1].padStart(2, '0');
-                let d = p[2].padStart(2, '0');
-                return `${parseInt(p[0]) - 543}-${m}-${d}`;
-            }
-            return beDateStr;
-        }
+        // ==========================================
+        // Master Date Normalizer: แก้ปัญหาวันที่รวนทุกรูปแบบ (DD/MM/YYYY, YYYY-MM-DD ฯลฯ)
+        // ==========================================
+        function normalizeDate(dateStr) {
+            if (!dateStr) return null;
+            let p = dateStr.trim().split(' ')[0].split(/[-/]/);
+            if (p.length < 3) return null;
 
-        function convertToBE(ceDateStr) {
-            if (!ceDateStr) return '';
-            const p = ceDateStr.split(' ')[0].split(/[-/]/);
-            if (p.length >= 3) {
-                let m = p[1].padStart(2, '0');
-                let d = p[2].padStart(2, '0');
-                return `${parseInt(p[0]) + 543}-${m}-${d}`;
+            let y, m, d;
+            // ตรวจจับว่าปี (4 หลัก) อยู่ตำแหน่งแรก หรือตำแหน่งสุดท้าย
+            if (p[0].length === 4) {
+                y = parseInt(p[0]);
+                m = parseInt(p[1]);
+                d = parseInt(p[2]);
+            } else if (p[2].length === 4) {
+                y = parseInt(p[2]);
+                m = parseInt(p[1]);
+                d = parseInt(p[0]);
+            } else {
+                return null;
             }
-            return ceDateStr;
-        }
 
-        // 2. แปลงวันที่เป็น "ตัวเลขจำนวนเต็ม" (YYYYMMDD) เพื่อใช้เทียบค่าแบบ 100% ไร้บั๊ก
-        function toIntDate(dateStr) {
-            if (!dateStr) return 0;
-            const p = dateStr.split(' ')[0].split(/[-/]/);
-            if (p.length >= 3) {
-                let y = parseInt(p[0]);
-                let m = parseInt(p[1]);
-                let d = parseInt(p[2]);
-                return (y * 10000) + (m * 100) + d; // เช่น 25690331
-            }
-            return 0;
+            if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+
+            return {
+                strCE: `${y - 543}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`,
+                intBE: (y * 10000) + (m * 100) + d, // สร้างตัวเลข 8 หลักเพื่อเทียบ มากกว่า/น้อยกว่า ได้ 100%
+                year: y,
+                month: m
+            };
         }
 
         document.getElementById('csvFileMain').addEventListener('change', handleFileUpload);
@@ -268,11 +259,19 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            // อัปเดตชื่อไฟล์บน UI ด้านบน
+            document.getElementById('headerFileName').innerText = "ไฟล์: " + file.name;
+
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']);
+                    // แปลงและกรองข้อมูลแถวที่วันที่พังหรืออ่านไม่ได้ทิ้งไป
+                    rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']).map(row => {
+                        row._dateObj = normalizeDate(row['วันที่เกิดเหตุ']);
+                        return row;
+                    }).filter(row => row._dateObj !== null);
+
                     if (rawData.length > 0) {
                         currentFilteredData = [...rawData];
                         
@@ -292,15 +291,14 @@
 
         function initDateRange() {
             if(rawData.length === 0) return;
-            // ดึงวันที่ทั้งหมดมาจัดรูปแบบให้เป๊ะก่อนทำการเรียงลำดับ
-            const dates = rawData.map(r => {
-                const p = r['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
-                if(p.length >= 3) return `${p[0]}-${p[1].padStart(2, '0')}-${p[2].padStart(2, '0')}`;
-                return r['วันที่เกิดเหตุ'];
-            }).filter(d => d).sort();
-            
-            document.getElementById('startDate').value = convertToCE(dates[0]);
-            document.getElementById('endDate').value = convertToCE(dates[dates.length - 1]);
+            // เรียงลำดับวันที่ด้วย intBE จากน้อยไปมาก
+            const sortedInts = rawData.map(r => r._dateObj.intBE).sort((a, b) => a - b);
+            const minDate = rawData.find(r => r._dateObj.intBE === sortedInts[0]);
+            const maxDate = rawData.find(r => r._dateObj.intBE === sortedInts[sortedInts.length - 1]);
+
+            // เอาค่า ค.ศ. ไปหยอดให้ Date Picker
+            document.getElementById('startDate').value = minDate._dateObj.strCE;
+            document.getElementById('endDate').value = maxDate._dateObj.strCE;
         }
 
         function initSlicers() {
@@ -327,12 +325,12 @@
         }
 
         function applyFilters() {
-            const startCE = document.getElementById('startDate').value;
+            const startCE = document.getElementById('startDate').value; // คืนค่าเป็น 'YYYY-MM-DD'
             const endCE = document.getElementById('endDate').value;
             
-            // แปลง Date Picker (ค.ศ.) -> เป็น พ.ศ. -> แล้วแปลงเป็นตัวเลขเพื่อเปรียบเทียบ
-            const startInt = startCE ? toIntDate(convertToBE(startCE)) : 0;
-            const endInt = endCE ? toIntDate(convertToBE(endCE)) : 99999999;
+            // แปลงวันที่จากปฏิทินให้เป็นตัวเลข 8 หลักของปี พ.ศ. (บวก 5430000 เพื่อความเป๊ะ)
+            const startInt = startCE ? parseInt(startCE.replace(/-/g, '')) + 5430000 : 0;
+            const endInt = endCE ? parseInt(endCE.replace(/-/g, '')) + 5430000 : 99999999;
             
             const selectedFilters = {};
             for (const [colName, elementId] of Object.entries(filterFields)) {
@@ -343,12 +341,10 @@
             }
 
             currentFilteredData = rawData.filter(row => {
-                const rowInt = toIntDate(row['วันที่เกิดเหตุ']);
+                // กรองวันที่แบบสมบูรณ์แบบ
+                if (row._dateObj.intBE < startInt || row._dateObj.intBE > endInt) return false;
                 
-                // เช็คช่วงวันที่ด้วยตัวเลขรับรองความแม่นยำ
-                if (rowInt < startInt || rowInt > endInt) return false;
-                
-                // เช็ค Slicer
+                // กรอง Slicers
                 for (const colName in selectedFilters) {
                     const rowValue = row[colName] || 'ไม่ระบุ';
                     if (!selectedFilters[colName].includes(rowValue)) return false;
@@ -388,12 +384,8 @@
             const categoryCounts = {};
 
             data.forEach(row => {
-                // บังคับแปลงเดือนให้มี 2 หลัก (zero padding) ก่อนโยนเข้ากราฟ
-                const dateParts = row['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
-                if (dateParts.length >= 2) {
-                    const monthYear = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}`;
-                    monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
-                }
+                const monthYear = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
+                monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
                 
                 const lvl = row['ระดับ'].toUpperCase() || 'N/A';
                 levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
@@ -423,6 +415,25 @@
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (charts[canvasId]) charts[canvasId].destroy();
 
+            // แยก Option สำหรับแกนออกไปต่างหากเพื่อไม่ให้ตีกันกับกราฟแนวนอน
+            let customScales = {
+                x: {
+                    ticks: {}
+                }
+            };
+
+            // แก้ไขปัญหากราฟเดือนโดยเจาะจงใช้ callback เฉพาะกราฟเดือนเท่านั้น (แกน X โชว์ตัวเลขกราฟอื่นจะปกติแล้ว)
+            if (filterType === 'month' && !isHorizontal) {
+                customScales.x.ticks.callback = function(value) {
+                    let raw = this.getLabelForValue(value);
+                    if (raw) {
+                        let p = raw.split('-');
+                        if (p.length >= 2) return thaiMonthsShort[parseInt(p[1])-1] + ' ' + p[0].substring(2);
+                    }
+                    return raw;
+                };
+            }
+
             const config = {
                 type: type,
                 data: {
@@ -439,26 +450,11 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     indexAxis: isHorizontal ? 'y' : 'x',
-                    scales: {
-                        x: {
-                            ticks: {
-                                // 3. แก้บั๊ก Undefined: ดึง Label ตรงๆ จากอาร์เรย์ตาม index แทน
-                                callback: function(value, index) {
-                                    let raw = labels[index];
-                                    if (filterType === 'month' && !isHorizontal && raw) {
-                                        let p = raw.split('-');
-                                        if (p.length >= 2) return thaiMonthsShort[parseInt(p[1])-1] + ' ' + p[0].substring(2);
-                                    }
-                                    return raw;
-                                }
-                            }
-                        }
-                    },
+                    scales: customScales,
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                // ดึงชื่อเดือนเต็มลงใน Tooltip ได้อย่างปลอดภัย
                                 title: function(tooltipItems) {
                                     let item = tooltipItems[0];
                                     if (filterType === 'month') {
@@ -496,12 +492,8 @@
 
             if (filterType === 'month') {
                 filteredTableData = currentFilteredData.filter(row => {
-                    const dateParts = row['วันที่เกิดเหตุ'].split(' ')[0].split(/[-/]/);
-                    if (dateParts.length >= 2) {
-                        const monthYear = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}`;
-                        return monthYear === label;
-                    }
-                    return false;
+                    const monthYear = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
+                    return monthYear === label;
                 });
                 let p = label.split('-');
                 let niceDate = `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
