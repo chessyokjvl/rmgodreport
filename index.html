@@ -28,6 +28,8 @@
         .dt-buttons { margin-bottom: 1rem; }
         .card-clickable { cursor: pointer; transition: transform 0.2s; }
         .card-clickable:hover { transform: translateY(-5px); }
+        /* ซ่อนลูกศร Sort สำหรับแถวที่ไม่มีข้อมูล */
+        table.dataTable thead .sorting, table.dataTable thead .sorting_asc, table.dataTable thead .sorting_desc { cursor: pointer; }
     </style>
 </head>
 <body class="p-6 flex flex-col">
@@ -39,9 +41,7 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-4">JVL-RM God Report Add-on Tools</h1>
             <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 max-w-3xl mx-auto mb-8 text-left">
                 <h3 class="text-blue-800 font-bold mb-2 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
                     คำแนะนำก่อนใช้งาน
                 </h3>
                 <ul class="list-disc list-inside text-gray-700 space-y-2 text-sm md:text-base">
@@ -49,7 +49,6 @@
                     <li>นำไฟล์มาอัปโหลดเข้าระบบเพื่อวิเคราะห์แบบ Interactive</li>
                 </ul>
             </div>
-            
             <label class="inline-block bg-blue-600 text-white font-semibold px-8 py-4 rounded-xl hover:bg-blue-700 cursor-pointer transition shadow-md">
                 <span class="flex items-center gap-2 text-lg">คลิกเพื่อ Import ไฟล์ CSV</span>
                 <input type="file" id="csvFileMain" accept=".csv" class="hidden" />
@@ -111,31 +110,9 @@
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-amber-200">
-                <div class="flex items-center gap-2 mb-4">
-                    <div class="bg-amber-100 p-2 rounded-lg text-amber-600 font-bold">Risk Register</div>
-                    <h3 class="font-bold text-gray-700">รายการความเสี่ยงสำคัญ (ระดับ E ขึ้นไป ล่าสุดของแต่ละหมวด)</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table id="riskRegisterTable" class="w-full text-xs text-left border-collapse">
-                        <thead>
-                            <tr class="bg-amber-50 text-amber-800">
-                                <th class="p-2 border whitespace-nowrap">หมวดความเสี่ยง</th>
-                                <th class="p-2 border">รายการความเสี่ยง</th>
-                                <th class="p-2 border whitespace-nowrap text-center">มาตรฐาน 9 ด้าน / SAVE</th>
-                                <th class="p-2 border whitespace-nowrap text-center">วันที่ล่าสุด</th>
-                                <th class="p-2 border text-center">ระดับ</th>
-                                <th class="p-2 border">เลขที่/รายละเอียด</th>
-                            </tr>
-                        </thead>
-                        <tbody id="riskRegisterBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="dashboardArea">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-700 mb-2 text-xs">แนวโน้มรายเดือน</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-700 mb-2 text-xs">ระดับความรุนแรง</h3><div class="chart-container"><canvas id="levelChart"></canvas></div></div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-700 mb-2 text-xs">สัดส่วนตามระดับความรุนแรง</h3><div class="chart-container"><canvas id="levelChart"></canvas></div></div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 md:col-span-2"><h3 class="font-bold text-gray-700 mb-2 text-xs">หมวดความเสี่ยง (Top 10)</h3><div class="chart-container" style="height: 350px;"><canvas id="categoryChart"></canvas></div></div>
             </div>
 
@@ -160,6 +137,31 @@
                     </table>
                 </div>
             </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-amber-200 mt-8">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="bg-amber-100 p-2 rounded-lg text-amber-600 font-bold">Risk Register</div>
+                    <h3 class="font-bold text-gray-700 text-lg">รายการความเสี่ยงสำคัญ 9ES & SAVE</h3>
+                </div>
+                <p class="text-xs text-red-500 mb-4 font-medium">* ใช้ได้เฉพาะกับรายการความเสี่ยงที่กำหนดโดยรพ.จิตเวชเลยฯ เท่านั้น (แสดงเฉพาะอุบัติการณ์ระดับ E ขึ้นไป)</p>
+                
+                <div class="overflow-x-auto">
+                    <table id="riskRegisterTable" class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-amber-50 text-amber-800">
+                                <th class="p-2 border whitespace-nowrap cursor-pointer hover:bg-amber-100">มาตรฐาน 9 ด้าน / SAVE ↕️</th>
+                                <th class="p-2 border whitespace-nowrap text-center cursor-pointer hover:bg-amber-100">ผ่านไปแล้ว (วัน) ↕️</th>
+                                <th class="p-2 border whitespace-nowrap text-center cursor-pointer hover:bg-amber-100">วันที่ล่าสุด ↕️</th>
+                                <th class="p-2 border text-center">ระดับ</th>
+                                <th class="p-2 border">หมวดความเสี่ยง / รายการ</th>
+                                <th class="p-2 border">เลขที่/รายละเอียด</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riskRegisterBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -170,13 +172,30 @@
         let rawData = []; 
         let currentFilteredData = []; 
         let dataTableInstance = null; 
+        let riskRegisterTableInstance = null;
         let tomSelects = {}; 
         
         // ==========================================
-        // ฐานข้อมูล Logic การจับคู่ 9ES / SAVE (Map ด้วย "รายการ")
-        // สามารถเพิ่มข้อมูลได้เรื่อยๆ ในบล็อกนี้
-        // รูปแบบ: "ชื่อรายการความเสี่ยง": "มาตรฐานที่ตรงกัน"
+        // ฐานข้อมูล ลำดับมาตรฐาน 14 ข้อ และ Mapping
         // ==========================================
+        const standardCategories = [
+            { name: "S : ผ่าตัด / ECT ปลอดภัย", type: "9ES" },
+            { name: "I : บุคลากรติดเชื้อ", type: "9ES" },
+            { name: "I : คนไข้ติดเชื้อ", type: "9ES" },
+            { name: "M : ความคลาดเคลื่อนทางยา", type: "9ES" },
+            { name: "M : อาการไม่พึงประสงค์จากยา", type: "9ES" },
+            { name: "M : ให้เลือดผิดพลาด", type: "9ES" },
+            { name: "P : ระบุตัวตนผู้ป่วยผิด", type: "9ES" },
+            { name: "P : วินิจฉัยคลาดเคลื่อน", type: "9ES" },
+            { name: "L : รายงาน LAB คลาดเคลื่อน", type: "9ES" },
+            { name: "E : การคัดกรองคลาดเคลื่อน ER Triage", type: "9ES" },
+            { name: "S : Suicide", type: "SAVE" },
+            { name: "A : Accident", type: "SAVE" },
+            { name: "V : Violence", type: "SAVE" },
+            { name: "E : Escape", type: "SAVE" }
+        ];
+
+        // ตัวอย่าง Mapping จากฟิลด์ "รายการ"
         const itemMapping = {
             "Delay Diagnosis and Delay treatment ในผู้ป่วยฉุกเฉิน และผู้ป่วย Fast Track": "E : การคัดกรองคลาดเคลื่อน ER Triage",
   "Missed Diagnosis ที่ห้องฉุกเฉิน": "E : การคัดกรองคลาดเคลื่อน ER Triage",
@@ -531,7 +550,6 @@
   "ผู้ป่วยทำร้ายตนเอง": "V : Violence",
   "ผู้ป่วยทำร้ายผู้ป่วยอื่นขณะรอทำการรักษา ECT": "V : Violence",
   "ผู้ป่วยทำลายสิ่งของ": "V : Violence"
-            // ถ้ามีอันใหม่เอามาใส่ต่อได้เลย
         };
 
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -560,21 +578,34 @@
                     let n0 = parseInt(p[0].replace(/\D/g, ''));
                     let n1 = parseInt(p[1].replace(/\D/g, ''));
                     let n2 = parseInt(p[2].replace(/\D/g, ''));
-                    if (n0 > 2400) { y = n0; m = n1; d = n2; }
-                    else if (n2 > 2400) { y = n2; m = n1; d = n0; }
-                    else if (n0 > 1900) { y = n0 + 543; m = n1; d = n2; }
-                    else if (n2 > 1900) { y = n2 + 543; m = n1; d = n0; }
-                    else { y = n2 + 2500; m = n1; d = n0; }
+                    
+                    if (n0 > 1000) { y = n0; m = n1; d = n2; }
+                    else if (n2 > 1000) { y = n2; m = n1; d = n0; }
+                    else { y = n2; m = n1; d = n0; }
                 }
 
-                if (y < 2500) y += 543; if (y < 2500) y += 2500; 
+                // ปรับให้เป็น ปี พ.ศ. สี่หลัก เสมอ
+                if (y < 100) y += 2500;
+                else if (y >= 1900 && y <= 2100) y += 543;
 
                 return {
                     strCE: `${y - 543}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`,
                     intBE: (y * 10000) + (m * 100) + d,
-                    year: y, month: m, day: d
+                    year: y, 
+                    month: m, 
+                    day: d
                 };
             } catch (e) { return null; }
+        }
+
+        // คำนวณจำนวนวัน
+        function getDaysAgo(dateStringCE) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const past = new Date(dateStringCE);
+            past.setHours(0,0,0,0);
+            const diffTime = today - past;
+            return Math.floor(diffTime / (1000 * 60 * 60 * 24));
         }
 
         document.getElementById('csvFileMain').addEventListener('change', handleFileUpload);
@@ -675,56 +706,131 @@
             closeTable();
         }
 
-        // --- ฟังก์ชัน Risk Register: E ขึ้นไป ล่าสุดของแต่ละหมวด และ Map มาตรฐานด้วย "รายการ" ---
+        // --- Risk Register Generator (14 ด้าน เรียงตามคุณระบุเป๊ะๆ) ---
         function renderRiskRegister(data) {
+            if (riskRegisterTableInstance) {
+                riskRegisterTableInstance.destroy();
+            }
+            
             const body = document.getElementById('riskRegisterBody');
             body.innerHTML = '';
             
+            // กรองเฉพาะระดับ E ขึ้นไป
             const severeData = data.filter(r => ['E','F','G','H','I'].includes(r['ระดับ'].toUpperCase()));
-            const categories = [...new Set(severeData.map(r => r['หมวดความเสี่ยง']))];
             
-            categories.forEach(cat => {
-                const rows = severeData.filter(r => r['หมวดความเสี่ยง'] === cat).sort((a,b) => b._dateObj.intBE - a._dateObj.intBE);
-                const latest = rows[0];
+            // วนลูปตายตัว 14 ด้าน
+            standardCategories.forEach(std => {
+                // หาอุบัติการณ์ที่ Match กับมาตรฐานข้อนี้
+                const matchedRows = severeData.filter(r => {
+                    const itemDesc = r['รายการ'] || '';
+                    return itemMapping[itemDesc] === std.name;
+                });
+
+                let tr = document.createElement('tr');
+                tr.classList.add('hover:bg-amber-50');
                 
-                // ค้นหามาตรฐานจากฟิลด์ "รายการ"
-                const itemDesc = latest['รายการ'] || '';
-                const standard = itemMapping[itemDesc] || "-";
-                
-                const dObj = latest._dateObj;
-                const displayDate = dObj ? `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}` : latest['วันที่เกิดเหตุ'];
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-2 border font-bold text-gray-700">${cat}</td>
-                    <td class="p-2 border text-gray-600">${itemDesc}</td>
-                    <td class="p-2 border text-blue-600 text-center font-medium">${standard}</td>
-                    <td class="p-2 border text-center whitespace-nowrap">${displayDate}</td>
-                    <td class="p-2 border text-center"><span class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold">${latest['ระดับ']}</span></td>
-                    <td class="p-2 border text-gray-500">[${latest['เลขที่ใบความเสี่ยง']}] ${latest['รายละเอียด'].substring(0,80)}...</td>
-                `;
+                // กำหนดสี: 9ES = น้ำเงิน, SAVE = แดง
+                const colorClass = std.type === '9ES' ? 'text-blue-700' : 'text-red-600';
+
+                if (matchedRows.length > 0) {
+                    // เรียงวันล่าสุดไว้บนสุด
+                    matchedRows.sort((a,b) => b._dateObj.intBE - a._dateObj.intBE);
+                    const latest = matchedRows[0];
+                    const daysAgo = getDaysAgo(latest._dateObj.strCE);
+                    
+                    const dObj = latest._dateObj;
+                    const displayDate = `${dObj.day.toString().padStart(2,'0')}/${dObj.month.toString().padStart(2,'0')}/${dObj.year}`;
+                    
+                    tr.innerHTML = `
+                        <td class="p-2 border font-bold ${colorClass}">${std.name}</td>
+                        <td class="p-2 border text-center font-bold" data-order="${daysAgo}">${daysAgo} วัน</td>
+                        <td class="p-2 border text-center whitespace-nowrap" data-order="${dObj.intBE}">${displayDate}</td>
+                        <td class="p-2 border text-center"><span class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold border border-red-200">${latest['ระดับ']}</span></td>
+                        <td class="p-2 border text-gray-600"><span class="font-bold text-gray-700">${latest['หมวดความเสี่ยง']}</span><br/><span class="text-[11px]">${latest['รายการ']}</span></td>
+                        <td class="p-2 border text-gray-500 text-[11px]">[${latest['เลขที่ใบความเสี่ยง']}] ${latest['รายละเอียด'].substring(0,60)}...</td>
+                    `;
+                } else {
+                    // ไม่มีข้อมูล
+                    tr.innerHTML = `
+                        <td class="p-2 border font-bold ${colorClass}">${std.name}</td>
+                        <td class="p-2 border text-center text-gray-400" data-order="999999">-</td>
+                        <td class="p-2 border text-center text-gray-400" data-order="0">-</td>
+                        <td class="p-2 border text-center text-gray-400">-</td>
+                        <td class="p-2 border text-gray-400 text-center italic">ไม่เกิดอุบัติการณ์ในช่วงเวลาที่ตรวจสอบ</td>
+                        <td class="p-2 border text-gray-400 text-center">-</td>
+                    `;
+                }
                 body.appendChild(tr);
+            });
+
+            // สร้าง DataTable แบบ Sortable อย่างเดียว
+            riskRegisterTableInstance = $('#riskRegisterTable').DataTable({
+                paging: false,
+                searching: false,
+                info: false,
+                order: [[1, 'asc']], // เรียงตาม คอลัมน์ที่ 1 (ผ่านไปแล้วกี่วัน) อัตโนมัติ น้อยไปมาก
+                columnDefs: [
+                    { targets: [3, 4, 5], orderable: false } // ปิดการ Sort คอลัมน์ที่ไม่จำเป็น
+                ]
             });
         }
 
         function renderChart(canvasId, type, labels, data, color, isHorizontal, filterType, total) {
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (charts[canvasId]) charts[canvasId].destroy();
+
+            // แยก Options ไว้ให้ชัดเจน ป้องกันการทับซ้อนของแกน X 
+            let chartOptions = {
+                responsive: true, 
+                maintainAspectRatio: false,
+                indexAxis: isHorizontal ? 'y' : 'x',
+                plugins: { 
+                    legend: { display: false }, 
+                    tooltip: { 
+                        callbacks: { 
+                            title: function(tooltipItems) {
+                                let item = tooltipItems[0];
+                                if (filterType === 'month') {
+                                    let raw = labels[item.dataIndex]; 
+                                    if (raw) {
+                                        let p = raw.split('-');
+                                        if(p.length >= 2) return `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
+                                    }
+                                }
+                                return labels[item.dataIndex];
+                            },
+                            label: function(c) { return ` ${c.raw} ครั้ง (${((c.raw/total)*100).toFixed(1)}%)`; } 
+                        } 
+                    } 
+                },
+                onClick: (e, el) => { if(el.length > 0) triggerDrillDown(filterType, labels[el[0].index]); }
+            };
+
+            // Custom สำหรับแกน X ของกราฟแท่งรายเดือนเท่านั้น (กราฟหมวด จะใช้แกน X เป็นตัวเลขปกติอัตโนมัติ)
+            if (filterType === 'month' && !isHorizontal) {
+                chartOptions.scales = {
+                    x: {
+                        ticks: {
+                            callback: function(value) {
+                                let raw = this.getLabelForValue(value);
+                                if (raw) {
+                                    let p = raw.split('-');
+                                    if (p.length >= 2) return thaiMonthsShort[parseInt(p[1])-1] + ' ' + p[0].substring(2);
+                                }
+                                return raw;
+                            }
+                        }
+                    }
+                };
+            }
+
             charts[canvasId] = new Chart(ctx, {
                 type: type,
                 data: {
                     labels: labels,
                     datasets: [{ data: data, backgroundColor: color + '99', borderColor: color, borderWidth: 1, borderRadius: 4 }]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    indexAxis: isHorizontal ? 'y' : 'x',
-                    scales: { x: { ticks: { callback: function(v, i) { 
-                        let r = labels[i]; if(filterType==='month' && r) { let p=r.split('-'); return thaiMonthsShort[parseInt(p[1])-1]+' '+p[0].substring(2); } return r;
-                    }}}},
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return ` ${c.raw} ครั้ง (${((c.raw/total)*100).toFixed(1)}%)`; } } } },
-                    onClick: (e, el) => { if(el.length > 0) triggerDrillDown(filterType, labels[el[0].index]); }
-                }
+                options: chartOptions
             });
         }
 
@@ -765,12 +871,12 @@
                 tbody.appendChild(tr);
             });
             dataTableInstance = $('#drilldownTable').DataTable({
-                dom: '<"flex justify-between items-center mb-2"lBf>rtip', // จัดวาง Layout ของ DataTable ให้สวยงาม
+                dom: '<"flex justify-between items-center mb-2"lBf>rtip',
                 pageLength: 10,
                 lengthMenu: [[10, 20, 50, 100, -1], ["10 แถว", "20 แถว", "50 แถว", "100 แถว", "ทั้งหมด"]],
                 buttons: [
-                    { extend: 'excel', text: '📥 Export Excel', className: 'bg-green-600 text-white rounded px-3 py-1 text-xs ml-2 border-0' },
-                    { extend: 'print', text: '🖨️ Print / PDF', className: 'bg-blue-600 text-white rounded px-3 py-1 text-xs ml-2 border-0' }
+                    { extend: 'excel', text: '📥 Export Excel', className: 'bg-green-600 text-white rounded px-3 py-1 text-xs ml-2 border-0 shadow-sm' },
+                    { extend: 'print', text: '🖨️ Print / PDF', className: 'bg-blue-600 text-white rounded px-3 py-1 text-xs ml-2 border-0 shadow-sm' }
                 ],
                 language: { 
                     search: "🔍 ค้นหา:", 
