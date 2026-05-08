@@ -180,6 +180,30 @@
         let tomSelects = {}; 
         
         // ==========================================
+        // CONFIG Slicers
+        // ==========================================
+        const filterFields = {
+            'สถานะ': 'filterStatus',
+            'หมวดความเสี่ยง': 'filterCategory',
+            'สถานที่': 'filterLocation',
+            'ระดับ': 'filterLevel',
+            'หน่วยงานที่เกี่ยวข้อง': 'filterDept',
+            'NRLS': 'filterNRLS',
+            'รายการ': 'filterItem',
+            'Phase': 'filterPhase'
+        };
+
+        const tsConfig = {
+            plugins: ['remove_button'],
+            maxItems: null,
+            valueField: 'id',
+            labelField: 'title',
+            searchField: 'title',
+            placeholder: 'ทั้งหมด',
+            onChange: function() { applyFilters(); }
+        };
+
+        // ==========================================
         // ฐานข้อมูล ลำดับมาตรฐาน 14 ข้อ และ Mapping
         // ==========================================
         const standardCategories = [
@@ -199,7 +223,6 @@
             { no: 14, name: "E : Escape", type: "SAVE" }
         ];
 
-        // เติมข้อมูล Mapping ตรงนี้ได้เลยครับ
         const itemMapping = {
             "Delay Diagnosis and Delay treatment ในผู้ป่วยฉุกเฉิน และผู้ป่วย Fast Track": "E : การคัดกรองคลาดเคลื่อน ER Triage",
   "Missed Diagnosis ที่ห้องฉุกเฉิน": "E : การคัดกรองคลาดเคลื่อน ER Triage",
@@ -588,7 +611,6 @@
                     else { y = n2; m = n1; d = n0; }
                 }
 
-                // ปรับให้เป็น ปี พ.ศ. สี่หลัก เสมอ (ลาก่อน 3112 บั๊ก)
                 if (y < 100) y += 2500;
                 else if (y >= 1900 && y <= 2100) y += 543;
                 else if (y > 3000) y -= 543; 
@@ -623,11 +645,18 @@
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
+                transformHeader: function(h) { return h.trim(); },
                 complete: function(results) {
-                    rawData = results.data.filter(row => row['วันที่เกิดเหตุ'] && row['ระดับ']).map(row => {
-                        row._dateObj = normalizeDate(row['วันที่เกิดเหตุ']);
+                    rawData = results.data.map(row => {
+                        // เช็คและแปลงวันที่
+                        row._dateObj = row['วันที่เกิดเหตุ'] ? normalizeDate(row['วันที่เกิดเหตุ']) : null;
+                        
+                        // ป้องกัน Level ผิดพลาดจากอักขระซ่อนเร้น
+                        let rawLvl = String(row['ระดับ'] || '').trim().toUpperCase();
+                        row._level = rawLvl !== '' ? rawLvl : 'ไม่ระบุ';
+                        
                         return row;
-                    }).filter(row => row._dateObj !== null);
+                    }).filter(row => row._dateObj !== null); // กรองเฉพาะแถวที่มีวันที่ถูกต้องเท่านั้น
 
                     if (rawData.length > 0) {
                         currentFilteredData = [...rawData];
@@ -636,6 +665,8 @@
                         document.getElementById('welcomeScreen').style.display = 'none';
                         document.getElementById('mainDashboard').style.display = 'block';
                         processData(currentFilteredData);
+                    } else {
+                        alert("ไม่พบข้อมูลที่สมบูรณ์ในไฟล์ CSV หรือไฟล์ผิดรูปแบบ");
                     }
                 }
             });
@@ -650,19 +681,12 @@
         }
 
         function initSlicers() {
-            const filterFieldsAll = {
-                'สถานะ': 'filterStatus',
-                'หมวดความเสี่ยง': 'filterCategory',
-                'สถานที่': 'filterLocation',
-                'ระดับ': 'filterLevel',
-                'หน่วยงานที่เกี่ยวข้อง': 'filterDept',
-                'NRLS': 'filterNRLS',
-                'รายการ': 'filterItem',
-                'Phase': 'filterPhase'
-            };
-
-            for (const [colName, elementId] of Object.entries(filterFieldsAll)) {
-                let uniqueValues = [...new Set(rawData.map(item => item[colName] || 'ไม่ระบุ'))].filter(v => v !== 'ไม่ระบุ').sort();
+            for (const [colName, elementId] of Object.entries(filterFields)) {
+                let uniqueValues = [...new Set(rawData.map(item => {
+                    if (colName === 'ระดับ') return item._level;
+                    return String(item[colName] || '').trim() || 'ไม่ระบุ';
+                }))].filter(v => v !== 'ไม่ระบุ').sort();
+                
                 let options = uniqueValues.map(v => ({id: v, title: v}));
                 if(tomSelects[elementId]) tomSelects[elementId].destroy();
                 tomSelects[elementId] = new TomSelect(`#${elementId}`, { ...tsConfig, options: options });
@@ -675,17 +699,19 @@
             const startInt = startCE ? parseInt(startCE.replace(/-/g, '')) + 5430000 : 0;
             const endInt = endCE ? parseInt(endCE.replace(/-/g, '')) + 5430000 : 99999999;
             
-            const filterFieldsAll = { 'สถานะ':'filterStatus', 'หมวดความเสี่ยง':'filterCategory', 'สถานที่':'filterLocation', 'ระดับ':'filterLevel', 'หน่วยงานที่เกี่ยวข้อง':'filterDept', 'NRLS':'filterNRLS', 'รายการ':'filterItem', 'Phase':'filterPhase' };
             const selectedFilters = {};
-            for (const [colName, elementId] of Object.entries(filterFieldsAll)) {
-                const vals = tomSelects[elementId].getValue();
-                if (vals && vals.length > 0) selectedFilters[colName] = vals;
+            for (const [colName, elementId] of Object.entries(filterFields)) {
+                if (tomSelects[elementId]) {
+                    const vals = tomSelects[elementId].getValue();
+                    if (vals && vals.length > 0) selectedFilters[colName] = vals;
+                }
             }
 
             currentFilteredData = rawData.filter(row => {
                 if (row._dateObj.intBE < startInt || row._dateObj.intBE > endInt) return false;
                 for (const colName in selectedFilters) {
-                    if (!selectedFilters[colName].includes(row[colName] || 'ไม่ระบุ')) return false;
+                    let val = (colName === 'ระดับ') ? row._level : String(row[colName] || '').trim() || 'ไม่ระบุ';
+                    if (!selectedFilters[colName].includes(val)) return false;
                 }
                 return true;
             });
@@ -697,16 +723,16 @@
             const severeLevels = ['E', 'F', 'G', 'H', 'I'];
             const sentinelLevels = ['G', 'H', 'I'];
             
-            const severeCount = data.filter(row => severeLevels.includes(row['ระดับ'].toUpperCase())).length;
-            const sentinelCount = data.filter(row => sentinelLevels.includes(row['ระดับ'].toUpperCase())).length;
+            const severeCount = data.filter(row => severeLevels.includes(row._level)).length;
+            const sentinelCount = data.filter(row => sentinelLevels.includes(row._level)).length;
 
             // คำนวณหน่วยงานสูงสุดอย่างปลอดภัย
             const deptCounts = {};
             data.forEach(row => {
-                const dept = row['หน่วยงานที่เกี่ยวข้อง'] || 'ไม่ระบุ';
+                const dept = String(row['หน่วยงานที่เกี่ยวข้อง'] || '').trim() || 'ไม่ระบุ';
                 deptCounts[dept] = (deptCounts[dept] || 0) + 1;
             });
-            const deptKeys = Object.keys(deptCounts);
+            const deptKeys = Object.keys(deptCounts).filter(k => k !== 'ไม่ระบุ');
             const topDept = deptKeys.length > 0 ? deptKeys.reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b) : '-';
             const topDeptCount = topDept !== '-' ? deptCounts[topDept] : 0;
 
@@ -720,7 +746,7 @@
             document.getElementById('topDepartment').innerText = topDept;
             document.getElementById('topDeptMsg').innerText = `จำนวน ${topDeptCount} ครั้ง (คิดเป็น ${totalFiltered ? ((topDeptCount / totalFiltered) * 100).toFixed(1) : 0}%)`;
 
-            // ผูก Event การกด Clickable Cards ให้ส่งค่าเจาะจง
+            // ผูก Event Clickable Cards
             document.getElementById('severeCard').onclick = () => triggerDrillDown('severe', 'E,F,G,H,I');
             document.getElementById('topDeptCard').onclick = () => triggerDrillDown('topDept', topDept);
 
@@ -728,14 +754,22 @@
             data.forEach(row => {
                 const mY = `${row._dateObj.year}-${row._dateObj.month.toString().padStart(2, '0')}`;
                 monthCounts[mY] = (monthCounts[mY] || 0) + 1;
-                const lvl = row['ระดับ'].toUpperCase() || 'N/A';
-                levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
-                const cat = row['หมวดความเสี่ยง'] || 'ไม่ระบุ';
+                
+                levelCounts[row._level] = (levelCounts[row._level] || 0) + 1;
+                
+                const cat = String(row['หมวดความเสี่ยง'] || '').trim() || 'ไม่ระบุ';
                 categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
             });
 
+            // จัดเรียง Level (A-Z)
+            const sortedLevels = Object.keys(levelCounts).sort((a,b) => {
+                if(a === 'ไม่ระบุ') return 1; if(b === 'ไม่ระบุ') return -1;
+                return a.localeCompare(b);
+            });
+            const levelData = sortedLevels.map(l => levelCounts[l]);
+
             renderChart('trendChart', 'bar', Object.keys(monthCounts).sort(), Object.values(monthCounts), '#3b82f6', false, 'month', totalFiltered);
-            renderChart('levelChart', 'bar', Object.keys(levelCounts).sort(), Object.values(levelCounts), '#f59e0b', false, 'level', totalFiltered);
+            renderChart('levelChart', 'bar', sortedLevels, levelData, '#f59e0b', false, 'level', totalFiltered);
             renderChart('categoryChart', 'bar', Object.keys(categoryCounts).sort((a,b) => categoryCounts[b]-categoryCounts[a]).slice(0,10), Object.values(categoryCounts).sort((a,b)=>b-a).slice(0,10), '#10b981', true, 'category', totalFiltered);
             
             renderRiskRegister(data);
@@ -751,15 +785,14 @@
             const body = document.getElementById('riskRegisterBody');
             body.innerHTML = '';
             
-            const severeData = data.filter(r => ['E','F','G','H','I'].includes(r['ระดับ'].toUpperCase()));
+            const severeData = data.filter(r => ['E','F','G','H','I'].includes(r._level));
             
             standardCategories.forEach(std => {
-                const matchedRows = severeData.filter(r => itemMapping[r['รายการ'] || ''] === std.name);
+                const matchedRows = severeData.filter(r => itemMapping[String(r['รายการ'] || '').trim()] === std.name);
 
                 let tr = document.createElement('tr');
                 tr.classList.add('hover:bg-amber-50');
                 
-                // แยกสี 9ES (น้ำเงิน) และ SAVE (แดง)
                 const colorClass = std.type === '9ES' ? 'text-blue-700' : 'text-red-600';
 
                 if (matchedRows.length > 0) {
@@ -773,7 +806,7 @@
                         <td class="p-2 border font-bold ${colorClass}" data-order="${std.no}">${std.no}. ${std.name}</td>
                         <td class="p-2 border text-center font-bold" data-order="${daysAgo}">${daysAgo} วัน</td>
                         <td class="p-2 border text-center whitespace-nowrap" data-order="${dObj.intBE}">${displayDate}</td>
-                        <td class="p-2 border text-center"><span class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold border border-red-200">${latest['ระดับ']}</span></td>
+                        <td class="p-2 border text-center"><span class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold border border-red-200">${latest._level}</span></td>
                         <td class="p-2 border text-gray-600"><span class="font-bold text-gray-700">${latest['หมวดความเสี่ยง']}</span><br/><span class="text-[11px]">${latest['รายการ']}</span></td>
                         <td class="p-2 border text-gray-500 text-[11px]">[${latest['เลขที่ใบความเสี่ยง']}] ${latest['รายละเอียด'].substring(0,60)}...</td>
                     `;
@@ -790,15 +823,10 @@
                 body.appendChild(tr);
             });
 
-            // สร้าง DataTable แบบ Sortable อย่างเดียว
             riskRegisterTableInstance = $('#riskRegisterTable').DataTable({
-                paging: false,
-                searching: false,
-                info: false,
-                order: [[1, 'asc']], // เรียงตาม จำนวนวัน (น้อยสุดไปมากสุด)
-                columnDefs: [
-                    { targets: [3, 4, 5], orderable: false }
-                ]
+                paging: false, searching: false, info: false,
+                order: [[1, 'asc']], // เรียงตาม จำนวนวัน 
+                columnDefs: [ { targets: [3, 4, 5], orderable: false } ]
             });
         }
 
@@ -806,10 +834,7 @@
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (charts[canvasId]) charts[canvasId].destroy();
 
-            // แยก Option สำหรับกราฟแนวนอน (แกน X ต้องเป็นตัวเลขจำนวนครั้ง) และกราฟเดือน
-            let customScales = {
-                x: { ticks: {} }
-            };
+            let customScales = { x: { ticks: {} } };
 
             if (filterType === 'month' && !isHorizontal) {
                 customScales.x.ticks.callback = function(value) {
@@ -856,18 +881,20 @@
             });
         }
 
-        // --- ระบบ DrillDown แจกแจงการคลิก ---
+        // --- ระบบ DrillDown ---
         function triggerDrillDown(type, label) {
+            if (label === '-') return; // ป้องกันการกดกล่องที่ไม่มีข้อมูล
+            
             let filtered = [];
             let titleText = "";
             if (type === 'sentinel') {
-                filtered = currentFilteredData.filter(r => ['G','H','I'].includes(r['ระดับ'].toUpperCase()));
+                filtered = currentFilteredData.filter(r => ['G','H','I'].includes(r._level));
                 titleText = "รายละเอียดอุบัติการณ์: Sentinel Event (G, H, I)";
             } else if (type === 'severe') {
-                filtered = currentFilteredData.filter(r => ['E','F','G','H','I'].includes(r['ระดับ'].toUpperCase()));
+                filtered = currentFilteredData.filter(r => ['E','F','G','H','I'].includes(r._level));
                 titleText = "รายละเอียดอุบัติการณ์: ระดับ E ขึ้นไป";
             } else if (type === 'topDept') {
-                filtered = currentFilteredData.filter(r => r['หน่วยงานที่เกี่ยวข้อง'] === label);
+                filtered = currentFilteredData.filter(r => String(r['หน่วยงานที่เกี่ยวข้อง']).trim() === label);
                 titleText = "รายละเอียดอุบัติการณ์: " + label;
             } else if (type === 'month') {
                 filtered = currentFilteredData.filter(r => `${r._dateObj.year}-${r._dateObj.month.toString().padStart(2,'0')}` === label);
@@ -875,10 +902,10 @@
                 let niceDate = `${thaiMonthsFull[parseInt(p[1])-1]} ${p[0]}`;
                 titleText = `รายละเอียดอุบัติการณ์ ประจำเดือน: ${niceDate}`;
             } else if (type === 'level') {
-                filtered = currentFilteredData.filter(r => r['ระดับ'].toUpperCase() === label);
+                filtered = currentFilteredData.filter(r => r._level === label);
                 titleText = "รายละเอียดอุบัติการณ์ ระดับความรุนแรง: " + label;
             } else if (type === 'category') {
-                filtered = currentFilteredData.filter(r => r['หมวดความเสี่ยง'] === label);
+                filtered = currentFilteredData.filter(r => String(r['หมวดความเสี่ยง']).trim() === label);
                 titleText = "รายละเอียดอุบัติการณ์ หมวดความเสี่ยง: " + label;
             }
             renderTable(filtered, titleText);
@@ -898,10 +925,10 @@
                 tr.innerHTML = `
                     <td class="p-2 border">${r['เลขที่ใบความเสี่ยง']}</td>
                     <td class="p-2 border whitespace-nowrap text-center">${displayDate}</td>
-                    <td class="p-2 border text-center font-bold text-gray-700">${r['ระดับ']}</td>
+                    <td class="p-2 border text-center font-bold text-gray-700">${r._level}</td>
                     <td class="p-2 border">${r['หน่วยงานที่เกี่ยวข้อง']}</td>
                     <td class="p-2 border text-blue-600">${r['รายการ']}</td>
-                    <td class="p-2 border text-gray-500">${r['รายละเอียด'].substring(0,80)}...</td>
+                    <td class="p-2 border text-gray-500">${String(r['รายละเอียด'] || '').substring(0,80)}...</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -913,18 +940,13 @@
                     { extend: 'excel', text: '📥 Export Excel', className: 'bg-green-600 text-white rounded px-3 py-1 text-xs ml-2 border-0 shadow-sm hover:bg-green-700' },
                     { extend: 'print', text: '🖨️ Print / PDF', className: 'bg-blue-600 text-white rounded px-3 py-1 text-xs ml-2 border-0 shadow-sm hover:bg-blue-700' }
                 ],
-                language: { 
-                    search: "🔍 ค้นหา:", 
-                    info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
-                    lengthMenu: "แสดง _MENU_"
-                }
+                language: { search: "🔍 ค้นหา:", info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ", lengthMenu: "แสดง _MENU_" }
             });
             document.getElementById('tableArea').scrollIntoView({ behavior: 'smooth' });
         }
 
         function closeTable() { document.getElementById('tableArea').style.display = 'none'; }
         function resetFilters() { initDateRange(); for(let k in tomSelects) tomSelects[k].clear(true); applyFilters(); }
-        const tsConfig = { plugins: ['remove_button'], maxItems: null, placeholder: 'ทั้งหมด' };
     </script>
 </body>
 </html>
